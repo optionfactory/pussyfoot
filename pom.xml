@@ -45,9 +45,9 @@
         </repository>
     </distributionManagement>
     <properties>
-        <spring.version>4.2.6.RELEASE</spring.version>
-        <jackson.version>2.8.4</jackson.version>
-        <hibernate.version>5.2.3.Final</hibernate.version>
+        <spring.version>4.3.5.RELEASE</spring.version>
+        <jackson.version>2.8.5</jackson.version>
+        <hibernate.version>5.2.5.Final</hibernate.version>
     </properties>
     
     <dependencies>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>
-            <version>5.2.3.Final</version>
+            <version>${hibernate.version}</version>
             <optional>true</optional>            
         </dependency>
                                                       
