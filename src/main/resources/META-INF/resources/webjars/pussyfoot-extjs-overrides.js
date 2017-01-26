@@ -8,7 +8,7 @@ function callbackByHttpStatus(response){
         this.onFailure(response);
         return;
     }
-    if(this.isUpload){
+    if(this.isUpload || (this.form && this.form.hasUpload && this.form.hasUpload())){
         //we get no response status from uploads so all we can do is check if it looks like an error.
         var looksLikeAnError = decoded
         && decoded.constructor === Array 
