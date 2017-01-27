@@ -16,4 +16,9 @@ public class PageResponse<T> {
         return new PageResponse<>(total, data);
     }
 
+    @Override
+    public String toString() {
+        return "PageResponse{" + "data=" + data + ", total=" + total + '}';
+    }
+
 }

@@ -15,4 +15,9 @@ public class PageRequest {
         this.filters = filters;
     }
 
+    @Override
+    public String toString() {
+        return "PageRequest{" + "slice=" + slice + ", sorters=" + sorters + ", filters=" + filters + '}';
+    }
+
 }

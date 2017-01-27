@@ -10,4 +10,9 @@ public class FilterRequest {
         this.value = value;
     }
 
+    @Override
+    public String toString() {
+        return "FilterRequest{" + "name=" + name + ", value=" + value + '}';
+    }
+
 }

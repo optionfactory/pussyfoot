@@ -18,4 +18,10 @@ public class SliceRequest {
     public static SliceRequest unlimited() {
         return new SliceRequest(0, UNLIMITED);
     }
+
+    @Override
+    public String toString() {
+        return "SliceRequest{" + "start=" + start + ", limit=" + limit + '}';
+    }
+
 }

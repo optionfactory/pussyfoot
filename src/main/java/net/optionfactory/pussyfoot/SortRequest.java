@@ -14,4 +14,10 @@ public class SortRequest {
 
         ASC, DESC;
     }
+
+    @Override
+    public String toString() {
+        return "SortRequest{" + "name=" + name + ", direction=" + direction + '}';
+    }
+
 }
