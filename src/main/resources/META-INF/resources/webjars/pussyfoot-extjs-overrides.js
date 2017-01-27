@@ -36,7 +36,7 @@ Ext.form.Action.prototype.createCallback = function() {
 };
 
 Ext.data.proxy.Server.prototype.config.pageParam = '';
-Ext.data.proxy.Server.prototype.config.sortParams = 'sorters';
+Ext.data.proxy.Server.prototype.config.sortParam = 'sorters';
 Ext.data.proxy.Server.prototype.config.filterParam = 'filters';
 
 /*
