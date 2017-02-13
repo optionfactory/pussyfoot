@@ -39,6 +39,26 @@ Ext.data.proxy.Server.prototype.config.pageParam = '';
 Ext.data.proxy.Server.prototype.config.sortParam = 'sorters';
 Ext.data.proxy.Server.prototype.config.filterParam = 'filters';
 
+Ext.grid.filters.filter.Number.prototype.getSerializer = function () {
+    return function (data) {
+        data.value = JSON.stringify({number: data.value, operator: data.operator});
+        delete data.operator;
+    };
+};
+Ext.grid.filters.filter.Date.prototype.getSerializer = function () {
+    return function (data) {
+        data.value = JSON.stringify({timestamp: new Date(data.value).getTime(), operator: data.operator});
+        delete data.operator;
+    };
+};
+Ext.grid.filters.filter.List.prototype.getSerializer = function (o) {
+    return function (data) {
+        data.value = JSON.stringify(data.value);
+        delete data.operator;
+    }
+
+}
+
 /*
  * We always use submit as json (except for uploads)
  */
