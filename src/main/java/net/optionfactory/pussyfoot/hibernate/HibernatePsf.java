@@ -21,9 +21,11 @@ import org.hibernate.criterion.Projections;
  * Hibernate implementation of the pagination, sorting, filtering API.
  */
 public class HibernatePsf implements Psf<Criteria> {
+
     private final SessionFactory hibernate;
     private final ConcurrentMap<String, Function<String, Criterion>> availableFilters;
     private final ConcurrentMap<String, Function<Direction, Order>> availableSorters;
+
     public HibernatePsf(SessionFactory hibernate, ConcurrentMap<String, Function<String, Criterion>> availableFilters,
             ConcurrentMap<String, Function<Direction, Order>> availableSorters) {
         this.hibernate = hibernate;
@@ -34,12 +36,12 @@ public class HibernatePsf implements Psf<Criteria> {
     @Override
     public <T> PageResponse<T> queryForPage(Class<T> klass, PageRequest request, BiConsumer<Criteria, Criteria> cb) {
         final Session session = hibernate.getCurrentSession();
-        final Criteria criteriaForSlice = session.createCriteria(klass);
+        final Criteria criteriaForSlice = session.createCriteria(klass, "main");
         criteriaForSlice.setFirstResult(request.slice.start);
         if (request.slice.limit != SliceRequest.UNLIMITED) {
             criteriaForSlice.setMaxResults(request.slice.limit);
         }
-        final Criteria criteriaForCount = session.createCriteria(klass);
+        final Criteria criteriaForCount = session.createCriteria(klass, "main");
         criteriaForCount.setProjection(Projections.rowCount());
         Stream.of(request.filters)
                 .filter((net.optionfactory.pussyfoot.FilterRequest f) -> availableFilters.containsKey(f.name))
@@ -59,8 +61,6 @@ public class HibernatePsf implements Psf<Criteria> {
         final List<T> slice = (List<T>) criteriaForSlice.list();
         return PageResponse.of(total, slice);
     }
-
-
 
     /**
      * A builder for HibernatePsf.
@@ -87,7 +87,7 @@ public class HibernatePsf implements Psf<Criteria> {
 
     public static class Orders {
 
-        public static  Order fromDirection(String propertyName, Direction dir) {
+        public static Order fromDirection(String propertyName, Direction dir) {
             return dir == Direction.ASC ? Order.asc(propertyName) : Order.desc(propertyName);
         }
 
