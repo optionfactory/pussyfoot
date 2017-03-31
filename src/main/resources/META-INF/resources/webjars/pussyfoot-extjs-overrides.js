@@ -58,6 +58,19 @@ Ext.grid.filters.filter.List.prototype.getSerializer = function (o) {
     }
 
 }
+Ext.define('Ext.grid.filters.filter.UTCDate', {
+    extend: 'Ext.grid.filters.filter.Date',
+    alias: 'grid.filter.utcdate',
+    type: 'date',
+    getSerializer: function(){
+        return function (data) {
+            var d = new Date(data.value);
+            var utcTimestamp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)).getTime();
+            data.value = JSON.stringify({timestamp: utcTimestamp, operator: data.operator});
+            delete data.operator;
+        };        
+    }
+});
 
 /*
  * We always use submit as json (except for uploads)
