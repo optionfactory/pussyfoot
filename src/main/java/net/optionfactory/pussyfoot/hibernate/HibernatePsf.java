@@ -79,6 +79,10 @@ public class HibernatePsf implements Psf<Criteria> {
             sorters.put(name, sorter);
             return this;
         }
+        public Builder canSort(String name, String field) {
+            sorters.put(name, d -> d == Direction.ASC ? Order.asc(field) : Order.desc(field));
+            return this;
+        }
 
         public HibernatePsf build(SessionFactory hibernate) {
             return new HibernatePsf(hibernate, filters, sorters);
