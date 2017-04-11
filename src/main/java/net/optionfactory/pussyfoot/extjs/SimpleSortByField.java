@@ -4,6 +4,11 @@ import java.util.function.Function;
 import net.optionfactory.pussyfoot.SortRequest;
 import org.hibernate.criterion.Order;
 
+@Deprecated
+/**
+ * @deprecated  use "canSort" overload on HibernatePsf builder directly 
+ * 
+ */
 public class SimpleSortByField implements Function<SortRequest.Direction, Order> {
 
     private final String fieldName;
