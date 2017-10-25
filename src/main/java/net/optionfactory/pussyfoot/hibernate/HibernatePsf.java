@@ -25,23 +25,30 @@ public class HibernatePsf implements Psf<Criteria> {
     private final SessionFactory hibernate;
     private final ConcurrentMap<String, Function<String, Criterion>> availableFilters;
     private final ConcurrentMap<String, Function<Direction, Order>> availableSorters;
+    private final ConcurrentMap<String, String> availableAliases;
 
     public HibernatePsf(SessionFactory hibernate, ConcurrentMap<String, Function<String, Criterion>> availableFilters,
-            ConcurrentMap<String, Function<Direction, Order>> availableSorters) {
+            ConcurrentMap<String, Function<Direction, Order>> availableSorters,
+            ConcurrentMap<String, String> availableAliases) {
         this.hibernate = hibernate;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
+        this.availableAliases = availableAliases;
     }
 
     @Override
     public <T> PageResponse<T> queryForPage(Class<T> klass, PageRequest request, BiConsumer<Criteria, Criteria> cb) {
         final Session session = hibernate.getCurrentSession();
         final Criteria criteriaForSlice = session.createCriteria(klass, "main");
+        final Criteria criteriaForCount = session.createCriteria(klass, "main");
+        availableAliases.forEach((associationPath, alias) -> {
+            criteriaForSlice.createAlias(associationPath, alias);
+            criteriaForCount.createAlias(associationPath, alias);
+        });
         criteriaForSlice.setFirstResult(request.slice.start);
         if (request.slice.limit != SliceRequest.UNLIMITED) {
             criteriaForSlice.setMaxResults(request.slice.limit);
         }
-        final Criteria criteriaForCount = session.createCriteria(klass, "main");
         criteriaForCount.setProjection(Projections.rowCount());
         Stream.of(request.filters)
                 .filter((net.optionfactory.pussyfoot.FilterRequest f) -> availableFilters.containsKey(f.name))
@@ -56,6 +63,7 @@ public class HibernatePsf implements Psf<Criteria> {
                     criteriaForSlice.addOrder(availableSorters.get(s.name).apply(s.direction));
                     // no need to sort when counting.
                 });
+
         cb.accept(criteriaForSlice, criteriaForCount);
         final long total = ((Number) criteriaForCount.uniqueResult()).longValue();
         final List<T> slice = (List<T>) criteriaForSlice.list();
@@ -69,6 +77,12 @@ public class HibernatePsf implements Psf<Criteria> {
 
         private final ConcurrentMap<String, Function<String, Criterion>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, Function<Direction, Order>> sorters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, String> aliases = new ConcurrentHashMap<>();
+
+        public Builder crateAlias(String associationPath, String alias) {
+            aliases.put(associationPath, alias);
+            return this;
+        }
 
         public Builder canFilter(String name, Function<String, Criterion> filter) {
             filters.put(name, filter);
@@ -79,13 +93,14 @@ public class HibernatePsf implements Psf<Criteria> {
             sorters.put(name, sorter);
             return this;
         }
+
         public Builder canSort(String name, String field) {
             sorters.put(name, d -> d == Direction.ASC ? Order.asc(field) : Order.desc(field));
             return this;
         }
 
         public HibernatePsf build(SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, filters, sorters);
+            return new HibernatePsf(hibernate, filters, sorters, aliases);
         }
     }
 
