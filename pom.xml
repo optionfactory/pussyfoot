@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.optionfactory</groupId>
     <artifactId>pussyfoot</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Pagination, sorting, filtering</description>
@@ -25,6 +25,12 @@
         <developer>
             <name>Francesco Degrassi</name>
             <email>francesco.degrassi@optionfactory.net</email>
+            <organization>OptionFactory</organization>
+            <organizationUrl>http://optionfactory.net</organizationUrl>
+        </developer>
+        <developer>
+            <name>Davide Salvador</name>
+            <email>davide.salvador@optionfactory.net</email>
             <organization>OptionFactory</organization>
             <organizationUrl>http://optionfactory.net</organizationUrl>
         </developer>
