@@ -79,7 +79,7 @@ public class HibernatePsf implements Psf<Criteria> {
         private final ConcurrentMap<String, Function<Direction, Order>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, String> aliases = new ConcurrentHashMap<>();
 
-        public Builder crateAlias(String associationPath, String alias) {
+        public Builder createAlias(String associationPath, String alias) {
             aliases.put(associationPath, alias);
             return this;
         }
