@@ -7,7 +7,7 @@
     <packaging>jar</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Pagination, sorting, filtering</description>
-    <url>https://github.com/optionfactory/pagination</url>
+    <url>https://github.com/optionfactory/pussyfoot</url>
     <licenses>
         <license>
             <name>Simplified BSD License</name>
