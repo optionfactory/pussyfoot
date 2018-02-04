@@ -63,11 +63,11 @@ public class HibernatePsf implements Psf {
 
         public SorterContext() {
             additionalSelection = Optional.empty();
-            grouper = Optional.empty();
+            groupers = Optional.empty();
         }
 
         public Optional<Selection<?>> additionalSelection;
-        public Optional<Expression<?>> grouper;
+        public Optional<List<Expression<?>>> groupers;
         public Expression<?> sortExpression;
     }
 
@@ -100,7 +100,7 @@ public class HibernatePsf implements Psf {
                     final BiFunction<CriteriaBuilder, Root, SorterContext> cnsmr = availableSorters.get(s.name);
                     final SorterContext r = cnsmr.apply(cb, sliceRoot);
                     r.additionalSelection.ifPresent(sel -> selectors.add(sel));
-                    r.grouper.ifPresent(g -> scq.groupBy(g));
+                    r.groupers.ifPresent(g -> scq.groupBy(g));
                     orderers.add(s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression));
                 });
 
