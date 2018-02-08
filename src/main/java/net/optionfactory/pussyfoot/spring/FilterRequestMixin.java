@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public abstract class FilterRequestMixin {
 
     @JsonCreator
-    public FilterRequestMixin(@JsonProperty("name") String name, @JsonProperty("value") String value) {
+    public FilterRequestMixin(@JsonProperty("name") String name, @JsonProperty("value") Object value) {
     }
 
 }

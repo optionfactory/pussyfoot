@@ -1,11 +1,11 @@
 package net.optionfactory.pussyfoot;
 
-public class FilterRequest {
+public class FilterRequest<T> {
 
     public final String name;
-    public final String value;
+    public final T value;
 
-    public FilterRequest(String name, String value) {
+    public FilterRequest(String name, T value) {
         this.name = name;
         this.value = value;
     }

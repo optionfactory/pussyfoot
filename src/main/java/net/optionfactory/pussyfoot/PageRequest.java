@@ -8,13 +8,13 @@ import java.util.List;
 public class PageRequest {
 
     public static final SortRequest[] NO_SORTERS = new SortRequest[0];
-    public static final FilterRequest[] NO_FILTERS = new FilterRequest[0];
+    public static final FilterRequest<?>[] NO_FILTERS = new FilterRequest[0];
 
     public final SliceRequest slice;
     public final SortRequest[] sorters;
-    public final FilterRequest[] filters;
+    public final FilterRequest<?>[] filters;
 
-    public PageRequest(SliceRequest slice, SortRequest[] sorters, FilterRequest[] filters) {
+    public PageRequest(SliceRequest slice, SortRequest[] sorters, FilterRequest<?>[] filters) {
         this.slice = slice;
         this.sorters = sorters;
         this.filters = filters;
@@ -56,7 +56,7 @@ public class PageRequest {
          * @param filter the new filter to be added
          * @return the Builder
          */
-        public Builder addFilter(FilterRequest filter) {
+        public <T> Builder addFilter(FilterRequest<T> filter) {
             final List<FilterRequest> filters = new ArrayList<>(Arrays.asList(building.filters));
             filters.add(filter);
             building = new PageRequest(building.slice, building.sorters, filters.toArray(new FilterRequest[0]));
