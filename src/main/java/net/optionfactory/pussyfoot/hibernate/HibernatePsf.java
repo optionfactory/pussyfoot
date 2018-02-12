@@ -1,5 +1,6 @@
 package net.optionfactory.pussyfoot.hibernate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
@@ -131,75 +132,40 @@ public class HibernatePsf implements Psf {
         private final ConcurrentMap<String, JpaFilter<?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> sorters = new ConcurrentHashMap<>();
 
-        public <T> Builder customFilter(String name, JpaFilter<T> filter) {
+        public <T> Builder addCustomFilter(String name, JpaFilter<T> filter) {
             filters.put(name, filter);
             return this;
         }
 
-        public <T> Builder equals(String name, Function<Root, Path<T>> path) {
-            return customFilter(name, (cb, root, value) -> cb.equal(path.apply(root), value));
+        public <T> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path) {
+            return addCustomFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
         }
 
-        public <T extends Number> Builder numericFilter(String name, Function<Root, Path<T>> path, ObjectMapper objectMapper) {
-            return customFilter(name, (cb, root, value) -> {
-                try {
-                    final NumberFilter numericFilter = objectMapper.readValue((String) value, NumberFilter.class);
-                    switch (numericFilter.operator) {
-                        case lt:
-                            return cb.le(path.apply(root), numericFilter.number);
-                        case gt:
-                            return cb.gt(path.apply(root), numericFilter.number);
-                        case eq:
-                            return cb.equal(path.apply(root), numericFilter.number);
-                        default:
-                            throw new AssertionError(numericFilter.operator.name());
-                    }
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
+        public <T, X> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path, Function<X, T> valueAdapter) {
+            return addCustomFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
+        }
+
+        public Builder addFilterLike(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> path) {
+            return addCustomFilter(name, (CriteriaBuilder cb, Root root, String value) -> {
+                return cb.like(cb.lower(path.apply(cb, root)), ('%' + value + '%').toLowerCase());
             });
         }
 
-        public <T extends Instant> Builder dayFilter(String name, Function<Root, Path<T>> path, ObjectMapper objectMapper) {
-            return customFilter(name, (cb, root, value) -> {
-                try {
-                    final DateFilter dateFilter = objectMapper.readValue((String) value, DateFilter.class);
-                    switch (dateFilter.operator) {
-                        case lt:
-                            return cb.lessThan(path.apply(root), Instant.ofEpochMilli(dateFilter.timestamp));
-                        case gt:
-                            return cb.greaterThan(path.apply(root), Instant.ofEpochMilli(dateFilter.timestamp));
-                        case eq:
-                            return cb.and(cb.greaterThan(path.apply(root), Instant.ofEpochMilli(dateFilter.timestamp)),
-                                    cb.lessThan(path.apply(root), Instant.ofEpochMilli(dateFilter.timestamp).plus(1, ChronoUnit.DAYS)));
-                        default:
-                            throw new AssertionError(dateFilter.operator.name());
-                    }
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-            });
-        }
-
-        public <T, X> Builder equals(String name, Function<Root, Path<T>> path, Function<X, T> valueAdapter) {
-            return customFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(root), valueAdapter.apply(value)));
-        }
-
-        public Builder canSort(String name, BiFunction<CriteriaBuilder, Root, SorterContext> sorter) {
+        public Builder addSorter(String name, BiFunction<CriteriaBuilder, Root, SorterContext> sorter) {
             sorters.put(name, sorter);
             return this;
         }
 
-        public Builder canSort(String name, Function<Root, Path<?>> sorter) {
-            return canSort(name, (cb, root) -> {
+        public Builder addSorter(String name, Function<Root, Path<?>> sorter) {
+            return Builder.this.addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = sorter.apply(root);
                 return orderingContext;
             });
         }
 
-        public Builder canSort(String name, String field) {
-            return canSort(name, (cb, root) -> {
+        public Builder addSorter(String name, String field) {
+            return Builder.this.addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = root.get(field);
                 return orderingContext;

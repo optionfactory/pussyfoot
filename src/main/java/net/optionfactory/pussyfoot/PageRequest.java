@@ -72,18 +72,7 @@ public class PageRequest {
         public Builder addFilters(Collection<FilterRequest> filters) {
             final List<FilterRequest> existingfilters = new ArrayList<>(Arrays.asList(building.filters));
             existingfilters.addAll(filters);
-            building = new PageRequest(building.slice, building.sorters, filters.toArray(new FilterRequest[0]));
-            return this;
-        }
-
-        /**
-         * Replaces the page request filters in toto
-         *
-         * @param filters the new filters set
-         * @return the Builder
-         */
-        public Builder withFilters(Collection<FilterRequest> filters) {
-            building = new PageRequest(building.slice, building.sorters, filters.toArray(new FilterRequest[0]));
+            building = new PageRequest(building.slice, building.sorters, existingfilters.toArray(new FilterRequest[0]));
             return this;
         }
 
