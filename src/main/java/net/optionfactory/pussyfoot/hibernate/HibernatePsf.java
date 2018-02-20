@@ -36,6 +36,21 @@ public class HibernatePsf implements Psf<Criteria> {
         this.availableAliases = availableAliases;
     }
 
+    public Criteria countCriteria(Class klass, PageRequest request) {
+        final Session session = hibernate.getCurrentSession();
+        final Criteria criteriaForCount = session.createCriteria(klass, "main");
+        availableAliases.forEach((associationPath, alias) -> {
+            criteriaForCount.createAlias(associationPath, alias);
+        });
+        criteriaForCount.setProjection(Projections.rowCount());
+        Stream.of(request.filters)
+                .filter((net.optionfactory.pussyfoot.FilterRequest f) -> availableFilters.containsKey(f.name))
+                .forEach((net.optionfactory.pussyfoot.FilterRequest f) -> {
+                    criteriaForCount.add(availableFilters.get(f.name).apply(f.value));
+                });
+        return criteriaForCount;
+    }
+
     @Override
     public <T> PageResponse<T> queryForPage(Class<T> klass, PageRequest request, BiConsumer<Criteria, Criteria> cb) {
         final Session session = hibernate.getCurrentSession();
