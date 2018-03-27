@@ -34,7 +34,7 @@ public class HibernatePsf implements Psf {
 
     private final SessionFactory hibernate;
     private final ConcurrentMap<String, JpaFilter<?>> availableFilters;
-    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters;
+    private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> summarizers;
 
     public static Predicate like(CriteriaBuilder cb, Expression<String> path, String v) {
@@ -44,7 +44,7 @@ public class HibernatePsf implements Psf {
     public HibernatePsf(
             SessionFactory hibernate,
             ConcurrentMap<String, JpaFilter<?>> availableFilters,
-            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters,
+            ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters,
             ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers
     ) {
         this.hibernate = hibernate;
@@ -107,16 +107,18 @@ public class HibernatePsf implements Psf {
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
         final List<Order> orderers = new ArrayList<>();
-        Stream.of(request.sorters)
-                .filter(s -> availableSorters.containsKey(s.name))
-                //                .map(s -> availableSorters.get(s.name))
-                .forEach(s -> {
-                    final BiFunction<CriteriaBuilder, Root, SorterContext> cnsmr = availableSorters.get(s.name);
-                    final SorterContext r = cnsmr.apply(cb, sliceRoot);
-                    r.additionalSelection.ifPresent(sel -> selectors.add(sel));
-                    r.groupers.ifPresent(g -> scq.groupBy(g));
-                    orderers.add(s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression));
-                });
+        orderers.addAll(
+                Stream.of(request.sorters)
+                        .filter(s -> availableSorters.containsKey(s.name))
+                        .flatMap(s -> {
+                            return availableSorters.get(s.name).stream().map(cnsmr -> {
+                                final SorterContext r = cnsmr.apply(cb, sliceRoot);
+                                r.additionalSelection.ifPresent(sel -> selectors.add(sel));
+                                r.groupers.ifPresent(g -> scq.groupBy(g));
+                                return s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression);
+                            });
+                        }).collect(Collectors.toList())
+        );
 
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
         scq.where(cb.and(predicates.toArray(new Predicate[0])));
@@ -141,7 +143,7 @@ public class HibernatePsf implements Psf {
     public static class Builder {
 
         private final ConcurrentMap<String, JpaFilter<?>> filters = new ConcurrentHashMap<>();
-        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> sorters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers = new ConcurrentHashMap<>();
 
         public <T> Builder addCustomFilter(String name, JpaFilter<T> filter) {
@@ -164,12 +166,15 @@ public class HibernatePsf implements Psf {
         }
 
         public Builder addSorter(String name, BiFunction<CriteriaBuilder, Root, SorterContext> sorter) {
-            sorters.put(name, sorter);
+            if (!sorters.containsKey(name)) {
+                sorters.put(name, new ArrayList<>());
+            }
+            sorters.get(name).add(sorter);
             return this;
         }
 
         public Builder addSorter(String name, Function<Root, Path<?>> sorter) {
-            return Builder.this.addSorter(name, (cb, root) -> {
+            return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = sorter.apply(root);
                 return orderingContext;
@@ -177,9 +182,17 @@ public class HibernatePsf implements Psf {
         }
 
         public Builder addSorter(String name, String field) {
-            return Builder.this.addSorter(name, (cb, root) -> {
+            return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = root.get(field);
+                return orderingContext;
+            });
+        }
+
+        public Builder addSorter(String name) {
+            return addSorter(name, (cb, root) -> {
+                final SorterContext orderingContext = new SorterContext();
+                orderingContext.sortExpression = root.get(name);
                 return orderingContext;
             });
         }
