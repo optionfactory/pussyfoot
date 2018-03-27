@@ -1,12 +1,8 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,8 +23,6 @@ import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
 import net.optionfactory.pussyfoot.SliceRequest;
 import net.optionfactory.pussyfoot.SortRequest;
-import net.optionfactory.pussyfoot.extjs.DateFilter;
-import net.optionfactory.pussyfoot.extjs.NumberFilter;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -41,14 +35,18 @@ public class HibernatePsf implements Psf {
     private final SessionFactory hibernate;
     private final ConcurrentMap<String, JpaFilter<?>> availableFilters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters;
+    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> summarizers;
 
     public HibernatePsf(
             SessionFactory hibernate,
             ConcurrentMap<String, JpaFilter<?>> availableFilters,
-            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters) {
+            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters,
+            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers
+    ) {
         this.hibernate = hibernate;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
+        this.summarizers = reducers;
     }
 
     public static class SorterContext {
@@ -79,17 +77,26 @@ public class HibernatePsf implements Psf {
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
-        final CriteriaQuery<Long> ccq = cb.createQuery(Long.class);
+        final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
         final Root<T> countRoot = ccq.from(klass);
-        ccq.select(cb.count(countRoot));
+        final List<Selection<?>> countSelectors = new ArrayList<>();
+        countSelectors.add(cb.count(countRoot).alias("psfcount"));
+        summarizers.entrySet().stream()
+                .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
+                .collect(Collectors.toCollection(() -> countSelectors));
+        ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
         final List<Predicate> predicates = Stream.of(request.filters)
                 .filter(filterRequest -> availableFilters.containsKey(filterRequest.name))
                 .map(filterRequest -> {
                     return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
                 }).collect(Collectors.toList());
         ccq.where(cb.and(predicates.toArray(new Predicate[0])));
-        final Query<Long> countQuery = session.createQuery(ccq);
-        final Long total = countQuery.getSingleResult();
+        final Query<Tuple> countQuery = session.createQuery(ccq);
+        final Tuple countResult = countQuery.getSingleResult();
+        final Long total = countResult.get("psfcount", Long.class);
+        final Map<String, Object> reductions = countResult.getElements().stream()
+                .filter(e -> summarizers.containsKey(e.getAlias()))
+                .collect(Collectors.toMap(t -> t.getAlias(), t -> countResult.get(t.getAlias())));
 
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
         final Root<T> sliceRoot = scq.from(klass);
@@ -121,7 +128,7 @@ public class HibernatePsf implements Psf {
                 .stream()
                 .map(tuple -> tuple.get(0, klass))
                 .collect(Collectors.toList());
-        return PageResponse.of(total, slice);
+        return PageResponse.of(total, slice, reductions);
     }
 
     /**
@@ -131,6 +138,7 @@ public class HibernatePsf implements Psf {
 
         private final ConcurrentMap<String, JpaFilter<?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> sorters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers = new ConcurrentHashMap<>();
 
         public <T> Builder addCustomFilter(String name, JpaFilter<T> filter) {
             filters.put(name, filter);
@@ -172,8 +180,13 @@ public class HibernatePsf implements Psf {
             });
         }
 
+        public Builder addReducer(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> reduction) {
+            reducers.put(name, reduction);
+            return this;
+        }
+
         public HibernatePsf build(SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, filters, sorters);
+            return new HibernatePsf(hibernate, filters, sorters, reducers);
         }
     }
 }
