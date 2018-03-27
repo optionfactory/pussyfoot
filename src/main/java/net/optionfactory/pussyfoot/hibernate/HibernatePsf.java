@@ -146,21 +146,35 @@ public class HibernatePsf implements Psf {
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers = new ConcurrentHashMap<>();
 
+        public <T> Builder addFilter(String name, JpaFilter<T> filter) {
+            filters.put(name, filter);
+            return this;
+        }
+
+        @Deprecated()
+        /**
+         *  * @deprecated long method name </br>
+         * use {@link #addFilter()} instead
+         */
         public <T> Builder addCustomFilter(String name, JpaFilter<T> filter) {
             filters.put(name, filter);
             return this;
         }
 
         public <T> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path) {
-            return addCustomFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
+            return addFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
         }
 
         public <T, X> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path, Function<X, T> valueAdapter) {
-            return addCustomFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
+            return addFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
+        }
+
+        public <T> Builder addFilterEquals(String name) {
+            return addFilter(name, (cb, root, value) -> cb.equal(root.get(name), value));
         }
 
         public Builder addFilterLike(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> path) {
-            return addCustomFilter(name, (CriteriaBuilder cb, Root root, String value) -> {
+            return addFilter(name, (CriteriaBuilder cb, Root root, String value) -> {
                 return HibernatePsf.like(cb, path.apply(cb, root), value);
             });
         }
