@@ -41,6 +41,15 @@ public class HibernatePsf implements Psf {
         return cb.like(cb.lower(path), ('%' + v + '%').toLowerCase());
     }
 
+    public static Predicate matchesInt(CriteriaBuilder cb, Expression<String> path, String v) {
+        try {
+            final Integer i = Integer.parseInt(v);
+            return cb.equal(path, i);
+        } catch (NumberFormatException ex) {
+            return cb.or();
+        }
+    }
+
     public HibernatePsf(
             SessionFactory hibernate,
             ConcurrentMap<String, JpaFilter<?>> availableFilters,
