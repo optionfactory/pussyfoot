@@ -35,7 +35,7 @@ public class HibernatePsf implements Psf {
     private final SessionFactory hibernate;
     private final ConcurrentMap<String, JpaFilter<?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters;
-    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> summarizers;
+    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers;
 
     public static Predicate like(CriteriaBuilder cb, Expression<String> path, String v) {
         return cb.like(cb.lower(path), ('%' + v + '%').toLowerCase());
@@ -45,12 +45,12 @@ public class HibernatePsf implements Psf {
             SessionFactory hibernate,
             ConcurrentMap<String, JpaFilter<?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters,
-            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers
+            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers
     ) {
         this.hibernate = hibernate;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
-        this.summarizers = reducers;
+        this.reducers = reducers;
     }
 
     public static class SorterContext {
@@ -84,8 +84,8 @@ public class HibernatePsf implements Psf {
         final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
         final Root<T> countRoot = ccq.from(klass);
         final List<Selection<?>> countSelectors = new ArrayList<>();
-        countSelectors.add(cb.count(countRoot).alias("psfcount"));
-        summarizers.entrySet().stream()
+        countSelectors.add(cb.countDistinct(countRoot).alias("psfcount"));
+        reducers.entrySet().stream()
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
@@ -99,7 +99,7 @@ public class HibernatePsf implements Psf {
         final Tuple countResult = countQuery.getSingleResult();
         final Long total = countResult.get("psfcount", Long.class);
         final Map<String, Object> reductions = countResult.getElements().stream()
-                .filter(e -> summarizers.containsKey(e.getAlias()))
+                .filter(e -> reducers.containsKey(e.getAlias()))
                 .collect(Collectors.toMap(t -> t.getAlias(), t -> countResult.get(t.getAlias())));
 
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
@@ -144,7 +144,7 @@ public class HibernatePsf implements Psf {
 
         private final ConcurrentMap<String, JpaFilter<?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> sorters = new ConcurrentHashMap<>();
-        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> reducers = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers = new ConcurrentHashMap<>();
 
         public <T> Builder addFilter(String name, JpaFilter<T> filter) {
             filters.put(name, filter);
@@ -211,7 +211,7 @@ public class HibernatePsf implements Psf {
             });
         }
 
-        public Builder addReducer(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> reduction) {
+        public Builder addReducer(String name, BiFunction<CriteriaBuilder, Root, Expression<?>> reduction) {
             reducers.put(name, reduction);
             return this;
         }

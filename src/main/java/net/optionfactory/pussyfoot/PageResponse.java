@@ -8,13 +8,13 @@ import java.util.stream.Collectors;
 public class PageResponse<T> {
 
     public final List<T> data;
-    public final Map<String, Object> summary;
+    public final Map<String, Object> reductions;
     public final long total;
 
-    public PageResponse(long total, List<T> data, Map<String, Object> summary) {
+    public PageResponse(long total, List<T> data, Map<String, Object> reductions) {
         this.total = total;
         this.data = data;
-        this.summary = summary;
+        this.reductions = reductions;
     }
 
     public static <T> PageResponse<T> of(long total, List<T> data, Map<String, Object> summary) {
@@ -22,12 +22,12 @@ public class PageResponse<T> {
     }
 
     public <R> PageResponse<R> map(Function<? super T, ? extends R> mapper) {
-        return PageResponse.<R>of(this.total, this.data.stream().map(mapper).collect(Collectors.toList()), this.summary);
+        return PageResponse.<R>of(this.total, this.data.stream().map(mapper).collect(Collectors.toList()), this.reductions);
     }
 
     @Override
     public String toString() {
-        return "PageResponse{" + "data=" + data + ", reductions=" + summary + ", total=" + total + '}';
+        return "PageResponse{" + "data=" + data + ", reductions=" + reductions + ", total=" + total + '}';
     }
 
 }
