@@ -37,6 +37,10 @@ public class HibernatePsf implements Psf {
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, SorterContext>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<String>>> summarizers;
 
+    public static Predicate like(CriteriaBuilder cb, Expression<String> path, String v) {
+        return cb.like(cb.lower(path), ('%' + v + '%').toLowerCase());
+    }
+
     public HibernatePsf(
             SessionFactory hibernate,
             ConcurrentMap<String, JpaFilter<?>> availableFilters,
@@ -155,7 +159,7 @@ public class HibernatePsf implements Psf {
 
         public Builder addFilterLike(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> path) {
             return addCustomFilter(name, (CriteriaBuilder cb, Root root, String value) -> {
-                return cb.like(cb.lower(path.apply(cb, root)), ('%' + value + '%').toLowerCase());
+                return HibernatePsf.like(cb, path.apply(cb, root), value);
             });
         }
 
