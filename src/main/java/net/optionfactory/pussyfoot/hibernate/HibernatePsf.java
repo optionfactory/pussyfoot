@@ -170,11 +170,11 @@ public class HibernatePsf implements Psf {
             return this;
         }
 
-        public <T> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path) {
+        public <T> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Expression<T>> path) {
             return addFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
         }
 
-        public <T, X> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Path<T>> path, Function<X, T> valueAdapter) {
+        public <T, X> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Expression<T>> path, Function<X, T> valueAdapter) {
             return addFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
         }
 
