@@ -27,6 +27,9 @@ public class ExtjsEnumFilter<T> implements HibernatePsf.JpaFilter {
     public Predicate predicateFor(CriteriaBuilder cb, Root root, Object value) {
         try {
             final EnumSet<?> items = objectMapper.readValue((String) value, enumSetType);
+            if (items.isEmpty()) {
+                return cb.conjunction();
+            }
             return path.apply(cb, root).in(items);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
