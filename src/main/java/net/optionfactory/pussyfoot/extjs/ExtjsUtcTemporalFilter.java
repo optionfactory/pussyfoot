@@ -6,7 +6,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -16,7 +15,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf;
 
-public class ExtjsUtcTemporalFilter<T extends Temporal & Comparable> implements HibernatePsf.JpaFilter {
+public class ExtjsUtcTemporalFilter<T extends Temporal & Comparable<? super T>> implements HibernatePsf.JpaFilter {
 
     private final BiFunction<CriteriaBuilder, Root, Expression<T>> path;
     private final ObjectMapper objectMapper;
@@ -43,8 +42,7 @@ public class ExtjsUtcTemporalFilter<T extends Temporal & Comparable> implements 
                 case gt:
                     return cb.greaterThan(path.apply(cb, root), ref);
                 case eq:
-                    return cb.and(cb.greaterThan(path.apply(cb, root), ref),
-                            cb.lessThan(path.apply(cb, root), (T) ref.plus(1, ChronoUnit.DAYS)));
+                    return cb.equal(path.apply(cb, root), ref);
                 default:
                     throw new AssertionError(dateFilter.operator.name());
             }
