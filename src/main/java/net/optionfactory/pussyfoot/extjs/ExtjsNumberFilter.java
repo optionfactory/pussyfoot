@@ -25,7 +25,7 @@ public class ExtjsNumberFilter<T extends Number> implements HibernatePsf.JpaFilt
             final NumberFilter numericFilter = objectMapper.readValue((String) value, NumberFilter.class);
             switch (numericFilter.operator) {
                 case lt:
-                    return cb.le(path.apply(cb, root), numericFilter.number);
+                    return cb.lt(path.apply(cb, root), numericFilter.number);
                 case gt:
                     return cb.gt(path.apply(cb, root), numericFilter.number);
                 case eq:
