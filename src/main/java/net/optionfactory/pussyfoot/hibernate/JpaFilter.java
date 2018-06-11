@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.typed;
+package net.optionfactory.pussyfoot.hibernate;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Predicate;

@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.typed.extjs;
+package net.optionfactory.pussyfoot.hibernate.extjs;
 
 import net.optionfactory.pussyfoot.extjs.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,7 +14,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import net.optionfactory.pussyfoot.hibernate.typed.JpaFilter;
+import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> implements JpaFilter<TRoot,String> {
 

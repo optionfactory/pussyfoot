@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.typed;
+package net.optionfactory.pussyfoot.hibernate;
 
 import java.util.List;
 import java.util.Optional;

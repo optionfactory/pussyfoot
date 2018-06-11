@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.typed.extjs;
+package net.optionfactory.pussyfoot.hibernate.extjs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -8,7 +8,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import net.optionfactory.pussyfoot.hibernate.typed.JpaFilter;
+import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 public class ExtjsListFilter<TRoot,T> implements JpaFilter<TRoot,String> {
 

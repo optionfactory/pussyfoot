@@ -1,5 +1,6 @@
-package net.optionfactory.pussyfoot.extjs;
+package net.optionfactory.pussyfoot.hibernate.extjs;
 
+import net.optionfactory.pussyfoot.extjs.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.function.BiFunction;
@@ -7,20 +8,20 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import net.optionfactory.pussyfoot.hibernate.HibernatePsf;
+import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class ExtjsNumberFilter<T extends Number> implements HibernatePsf.JpaFilter {
+public class ExtjsNumberFilter<TRoot,T extends Number> implements JpaFilter<TRoot,String> {
 
-    private final BiFunction<CriteriaBuilder, Root, Expression<T>> path;
+    private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
 
-    public ExtjsNumberFilter(BiFunction<CriteriaBuilder, Root, Expression<T>> path, ObjectMapper objectMapper) {
+    public ExtjsNumberFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, ObjectMapper objectMapper) {
         this.path = path;
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Root root, Object value) {
+    public Predicate predicateFor(CriteriaBuilder cb, Root root, String value) {
         try {
             final NumberFilter numericFilter = objectMapper.readValue((String) value, NumberFilter.class);
             switch (numericFilter.operator) {

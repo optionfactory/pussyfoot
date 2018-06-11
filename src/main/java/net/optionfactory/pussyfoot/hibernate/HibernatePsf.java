@@ -1,9 +1,9 @@
 package net.optionfactory.pussyfoot.hibernate;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
@@ -29,69 +29,43 @@ import org.hibernate.query.Query;
 
 /**
  * Hibernate implementation of the pagination, sorting, filtering API.
+ *
+ * @param <TRoot>
  */
-public class HibernatePsf implements Psf {
+public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
     private final SessionFactory hibernate;
-    private final ConcurrentMap<String, JpaFilter<?>> availableFilters;
-    private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters;
-    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers;
-
-    public static Predicate like(CriteriaBuilder cb, Expression<String> path, String v) {
-        return cb.like(cb.lower(path), ('%' + v + '%').toLowerCase());
-    }
-
-    public static Predicate matchesInt(CriteriaBuilder cb, Expression<String> path, String v) {
-        try {
-            final Integer i = Integer.parseInt(v);
-            return cb.equal(path, i);
-        } catch (NumberFormatException ex) {
-            return cb.or();
-        }
-    }
+    private final Class<TRoot> klass;
+    private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
+    private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
+    private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers;
 
     public HibernatePsf(
             SessionFactory hibernate,
-            ConcurrentMap<String, JpaFilter<?>> availableFilters,
-            ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> availableSorters,
-            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers
+            Class<TRoot> klass,
+            ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
+            ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
+            ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers
     ) {
         this.hibernate = hibernate;
+        this.klass = klass;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
         this.reducers = reducers;
     }
 
-    public static class SorterContext {
-
-        public SorterContext() {
-            additionalSelection = Optional.empty();
-            groupers = Optional.empty();
-        }
-
-        public Optional<Selection<?>> additionalSelection;
-        public Optional<List<Expression<?>>> groupers;
-        public Expression<?> sortExpression;
-    }
-
-    @FunctionalInterface
-    public interface JpaFilter<T> {
-
-        Predicate predicateFor(CriteriaBuilder cb, Root r, T value);
-    }
-
-    private <T> Predicate predicateForNameAndValue(String name, T value, CriteriaBuilder cb, Root r) {
-        final JpaFilter<T> filter = (JpaFilter<T>) availableFilters.get(name);
+    private <T> Predicate predicateForNameAndValue(String name, T value, CriteriaBuilder cb, Root<TRoot> r) {
+        final JpaFilter<TRoot, T> filter = (JpaFilter<TRoot, T>) availableFilters.get(name);
         return filter.predicateFor(cb, r, value);
     }
 
     @Override
-    public <T> PageResponse<T> queryForPage(Class<T> klass, PageRequest request) {
+    public PageResponse<TRoot> queryForPage(PageRequest request) {
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
         final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
-        final Root<T> countRoot = ccq.from(klass);
+        final Root<TRoot> countRoot = ccq.from(klass);
         final List<Selection<?>> countSelectors = new ArrayList<>();
         countSelectors.add(cb.countDistinct(countRoot).alias("psfcount"));
         reducers.entrySet().stream()
@@ -112,21 +86,20 @@ public class HibernatePsf implements Psf {
                 .collect(Collectors.toMap(t -> t.getAlias(), t -> countResult.get(t.getAlias())));
 
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
-        final Root<T> sliceRoot = scq.from(klass);
+        final Root<TRoot> sliceRoot = scq.from(klass);
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
         final List<Order> orderers = new ArrayList<>();
-        orderers.addAll(
-                Stream.of(request.sorters)
-                        .filter(s -> availableSorters.containsKey(s.name))
-                        .flatMap(s -> {
-                            return availableSorters.get(s.name).stream().map(cnsmr -> {
-                                final SorterContext r = cnsmr.apply(cb, sliceRoot);
-                                r.additionalSelection.ifPresent(sel -> selectors.add(sel));
-                                r.groupers.ifPresent(g -> scq.groupBy(g));
-                                return s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression);
-                            });
-                        }).collect(Collectors.toList())
+        orderers.addAll(Stream.of(request.sorters)
+                .filter(s -> availableSorters.containsKey(s.name))
+                .flatMap(s -> {
+                    return availableSorters.get(s.name).stream().map(cnsmr -> {
+                        final SorterContext r = cnsmr.apply(cb, sliceRoot);
+                        r.additionalSelection.ifPresent(sel -> selectors.add(sel));
+                        r.groupers.ifPresent(g -> scq.groupBy(g));
+                        return s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression);
+                    });
+                }).collect(Collectors.toList())
         );
 
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
@@ -139,7 +112,7 @@ public class HibernatePsf implements Psf {
             sliceQuery.setMaxResults(request.slice.limit);
         }
 
-        final List<T> slice = sliceQuery.getResultList()
+        final List<TRoot> slice = sliceQuery.getResultList()
                 .stream()
                 .map(tuple -> tuple.get(0, klass))
                 .collect(Collectors.toList());
@@ -149,46 +122,36 @@ public class HibernatePsf implements Psf {
     /**
      * A builder for HibernatePsf.
      */
-    public static class Builder {
+    public static class Builder<TRoot> {
 
-        private final ConcurrentMap<String, JpaFilter<?>> filters = new ConcurrentHashMap<>();
-        private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root, SorterContext>>> sorters = new ConcurrentHashMap<>();
-        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root, Expression<?>>> reducers = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, JpaFilter<TRoot, ?>> filters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
 
-        public <T> Builder addFilter(String name, JpaFilter<T> filter) {
+        public <T> Builder<TRoot> addFilter(String name, JpaFilter<TRoot, T> filter) {
             filters.put(name, filter);
             return this;
         }
 
-        @Deprecated()
-        /**
-         *  * @deprecated long method name </br>
-         * use {@link #addFilter()} instead
-         */
-        public <T> Builder addCustomFilter(String name, JpaFilter<T> filter) {
-            filters.put(name, filter);
-            return this;
-        }
-
-        public <T> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Expression<T>> path) {
+        public <T> Builder<TRoot> addFilterEquals(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path) {
             return addFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
         }
 
-        public <T, X> Builder addFilterEquals(String name, BiFunction<CriteriaBuilder, Root, Expression<T>> path, Function<X, T> valueAdapter) {
-            return addFilter(name, (CriteriaBuilder cb, Root root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
+        public <T, X> Builder<TRoot> addFilterEquals(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<X, T> valueAdapter) {
+            return addFilter(name, (CriteriaBuilder cb, Root<TRoot> root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
         }
 
-        public <T> Builder addFilterEquals(String name) {
+        public <T> Builder<TRoot> addFilterEquals(String name) {
             return addFilter(name, (cb, root, value) -> cb.equal(root.get(name), value));
         }
 
-        public Builder addFilterLike(String name, BiFunction<CriteriaBuilder, Root, Expression<String>> path) {
-            return addFilter(name, (CriteriaBuilder cb, Root root, String value) -> {
-                return HibernatePsf.like(cb, path.apply(cb, root), value);
+        public Builder<TRoot> addFilterLike(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<String>> path) {
+            return addFilter(name, (CriteriaBuilder cb, Root<TRoot> root, String value) -> {
+                return Predicates.like(cb, path.apply(cb, root), value);
             });
         }
 
-        public Builder addSorter(String name, BiFunction<CriteriaBuilder, Root, SorterContext> sorter) {
+        public Builder<TRoot> addSorter(String name, BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorter) {
             if (!sorters.containsKey(name)) {
                 sorters.put(name, new ArrayList<>());
             }
@@ -196,7 +159,7 @@ public class HibernatePsf implements Psf {
             return this;
         }
 
-        public Builder addSorter(String name, Function<Root, Path<?>> sorter) {
+        public Builder<TRoot> addSorter(String name, Function<Root<TRoot>, Path<?>> sorter) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = sorter.apply(root);
@@ -204,7 +167,7 @@ public class HibernatePsf implements Psf {
             });
         }
 
-        public Builder addSorter(String name, String field) {
+        public Builder<TRoot> addSorter(String name, String field) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = root.get(field);
@@ -212,7 +175,7 @@ public class HibernatePsf implements Psf {
             });
         }
 
-        public Builder addSorter(String name) {
+        public Builder<TRoot> addSorter(String name) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
                 orderingContext.sortExpression = root.get(name);
@@ -220,13 +183,13 @@ public class HibernatePsf implements Psf {
             });
         }
 
-        public Builder addReducer(String name, BiFunction<CriteriaBuilder, Root, Expression<?>> reduction) {
+        public Builder<TRoot> addReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
             reducers.put(name, reduction);
             return this;
         }
 
-        public HibernatePsf build(SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, filters, sorters, reducers);
+        public HibernatePsf build(Class<TRoot> clazz, SessionFactory hibernate) {
+            return new HibernatePsf(hibernate, clazz, filters, sorters, reducers);
         }
     }
 }

@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.extjs;
+package net.optionfactory.pussyfoot.hibernate.extjs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionLikeType;
@@ -9,24 +9,24 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import net.optionfactory.pussyfoot.hibernate.HibernatePsf;
+import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class ExtjsEnumFilter<T> implements HibernatePsf.JpaFilter {
+public class ExtjsEnumFilter<TRoot, T> implements JpaFilter<TRoot, String> {
 
-    private final BiFunction<CriteriaBuilder, Root, Expression<T>> path;
+    private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
     private final CollectionLikeType enumSetType;
 
-    public ExtjsEnumFilter(BiFunction<CriteriaBuilder, Root, Expression<T>> path, Class<? extends Enum> enumClass, ObjectMapper objectMapper) {
+    public ExtjsEnumFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Class<? extends Enum> enumClass, ObjectMapper objectMapper) {
         this.path = path;
         this.objectMapper = objectMapper;
         this.enumSetType = objectMapper.getTypeFactory().constructCollectionLikeType(EnumSet.class, enumClass);
     }
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Root root, Object value) {
+    public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> root, String value) {
         try {
-            final EnumSet<?> items = objectMapper.readValue((String) value, enumSetType);
+            final EnumSet<?> items = objectMapper.readValue(value, enumSetType);
             if (items.isEmpty()) {
                 return cb.conjunction();
             }

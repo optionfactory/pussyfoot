@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.typed.extjs;
+package net.optionfactory.pussyfoot.hibernate.extjs;
 
 import net.optionfactory.pussyfoot.extjs.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,7 +10,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
-import net.optionfactory.pussyfoot.hibernate.typed.JpaFilter;
+import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 public class ExtjsUtcFilter<TRoot, T extends Instant> implements JpaFilter<TRoot, String> {
 
@@ -23,7 +23,7 @@ public class ExtjsUtcFilter<TRoot, T extends Instant> implements JpaFilter<TRoot
     }
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Root root, String value) {
+    public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> root, String value) {
         try {
             final DateFilter dateFilter = objectMapper.readValue(value, DateFilter.class);
             switch (dateFilter.operator) {
