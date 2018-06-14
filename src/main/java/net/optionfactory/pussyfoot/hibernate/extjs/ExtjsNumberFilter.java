@@ -21,14 +21,18 @@ public class ExtjsNumberFilter<TRoot,T extends Number> implements JpaFilter<TRoo
     }
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Root root, String value) {
+    public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> root, String value) {
         try {
             final NumberFilter numericFilter = objectMapper.readValue((String) value, NumberFilter.class);
             switch (numericFilter.operator) {
                 case lt:
                     return cb.lt(path.apply(cb, root), numericFilter.number);
+                case lte:
+                    return cb.le(path.apply(cb, root), numericFilter.number);
                 case gt:
                     return cb.gt(path.apply(cb, root), numericFilter.number);
+                case gte:
+                    return cb.ge(path.apply(cb, root), numericFilter.number);
                 case eq:
                     return cb.equal(path.apply(cb, root), numericFilter.number);
                 default:

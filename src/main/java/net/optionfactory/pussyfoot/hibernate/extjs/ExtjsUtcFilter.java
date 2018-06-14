@@ -29,8 +29,12 @@ public class ExtjsUtcFilter<TRoot, T extends Instant> implements JpaFilter<TRoot
             switch (dateFilter.operator) {
                 case lt:
                     return cb.lessThan(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp));
+                case lte:
+                    return cb.lessThanOrEqualTo(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp));
                 case gt:
                     return cb.greaterThan(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp));
+                case gte:
+                    return cb.greaterThanOrEqualTo(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp));
                 case eq:
                     return cb.and(cb.greaterThan(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp)),
                             cb.lessThan(path.apply(cb, root), Instant.ofEpochMilli(dateFilter.timestamp).plus(1, ChronoUnit.DAYS)));

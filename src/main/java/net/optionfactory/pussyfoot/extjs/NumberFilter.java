@@ -6,7 +6,7 @@ public class NumberFilter {
     public Operator operator;
 
     public static enum Operator {
-        lt, gt, eq
+        lt, gt, eq, gte, lte
     }
 
 }

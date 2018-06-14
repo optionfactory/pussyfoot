@@ -16,7 +16,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> implements JpaFilter<TRoot,String> {
+public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
@@ -40,8 +40,12 @@ public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? sup
             switch (dateFilter.operator) {
                 case lt:
                     return cb.lessThan(path.apply(cb, root), ref);
+                case lte:
+                    return cb.lessThanOrEqualTo(path.apply(cb, root), ref);
                 case gt:
                     return cb.greaterThan(path.apply(cb, root), ref);
+                case gte:
+                    return cb.greaterThanOrEqualTo(path.apply(cb, root), ref);
                 case eq:
                     return cb.equal(path.apply(cb, root), ref);
                 default:
