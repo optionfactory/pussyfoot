@@ -41,13 +41,13 @@ Ext.data.proxy.Server.prototype.config.filterParam = 'filters';
 
 Ext.grid.filters.filter.Number.prototype.getSerializer = function () {
     return function (data) {
-        data.value = JSON.stringify({number: data.value, operator: data.operator});
+        data.value = JSON.stringify({value: data.value, operator: data.operator});
         delete data.operator;
     };
 };
 Ext.grid.filters.filter.Date.prototype.getSerializer = function () {
     return function (data) {
-        data.value = JSON.stringify({timestamp: new Date(data.value).getTime(), operator: data.operator});
+        data.value = JSON.stringify({value: new Date(data.value).getTime(), operator: data.operator});
         delete data.operator;
     };
 };

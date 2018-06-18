@@ -11,13 +11,13 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class ExtjsEnumFilter<TRoot, T> implements JpaFilter<TRoot, String> {
+public class EnumFilter<TRoot, T> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
     private final CollectionLikeType enumSetType;
 
-    public ExtjsEnumFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Class<? extends Enum> enumClass, ObjectMapper objectMapper) {
+    public EnumFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Class<? extends Enum> enumClass, ObjectMapper objectMapper) {
         this.path = path;
         this.objectMapper = objectMapper;
         this.enumSetType = objectMapper.getTypeFactory().constructCollectionLikeType(EnumSet.class, enumClass);

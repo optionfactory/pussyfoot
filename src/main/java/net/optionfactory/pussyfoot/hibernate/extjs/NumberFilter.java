@@ -10,12 +10,12 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class ExtjsNumberFilter<TRoot,T extends Number> implements JpaFilter<TRoot,String> {
+public class NumberFilter<TRoot, T extends Number> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
 
-    public ExtjsNumberFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, ObjectMapper objectMapper) {
+    public NumberFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, ObjectMapper objectMapper) {
         this.path = path;
         this.objectMapper = objectMapper;
     }
@@ -23,20 +23,20 @@ public class ExtjsNumberFilter<TRoot,T extends Number> implements JpaFilter<TRoo
     @Override
     public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> root, String value) {
         try {
-            final NumberFilter numericFilter = objectMapper.readValue((String) value, NumberFilter.class);
-            switch (numericFilter.operator) {
+            final NumericFilter filter = objectMapper.readValue((String) value, NumericFilter.class);
+            switch (filter.operator) {
                 case lt:
-                    return cb.lt(path.apply(cb, root), numericFilter.number);
+                    return cb.lt(path.apply(cb, root), filter.value);
                 case lte:
-                    return cb.le(path.apply(cb, root), numericFilter.number);
+                    return cb.le(path.apply(cb, root), filter.value);
                 case gt:
-                    return cb.gt(path.apply(cb, root), numericFilter.number);
+                    return cb.gt(path.apply(cb, root), filter.value);
                 case gte:
-                    return cb.ge(path.apply(cb, root), numericFilter.number);
+                    return cb.ge(path.apply(cb, root), filter.value);
                 case eq:
-                    return cb.equal(path.apply(cb, root), numericFilter.number);
+                    return cb.equal(path.apply(cb, root), filter.value);
                 default:
-                    throw new AssertionError(numericFilter.operator.name());
+                    throw new AssertionError(filter.operator.name());
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);
