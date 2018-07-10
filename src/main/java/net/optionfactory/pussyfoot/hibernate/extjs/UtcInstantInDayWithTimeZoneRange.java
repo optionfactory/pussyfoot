@@ -12,14 +12,15 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.extjs.NumericFilter;
+import net.optionfactory.pussyfoot.extjs.NumericFilterWithTimeZone;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-public class UtcInstantInDayRange<TRoot> implements JpaFilter<TRoot, String> {
+public class UtcInstantInDayWithTimeZoneRange<TRoot> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<Instant>> path;
     private final ObjectMapper objectMapper;
 
-    public UtcInstantInDayRange(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<Instant>> path, ObjectMapper objectMapper) {
+    public UtcInstantInDayWithTimeZoneRange(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<Instant>> path, ObjectMapper objectMapper) {
         this.path = path;
         this.objectMapper = objectMapper;
     }
@@ -27,11 +28,11 @@ public class UtcInstantInDayRange<TRoot> implements JpaFilter<TRoot, String> {
     @Override
     public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> r, String value) {
         try {
-            final NumericFilter numericFilter = objectMapper.readValue(value, NumericFilter.class);
-            final ZonedDateTime truncatedToDay = Instant.ofEpochMilli(numericFilter.value).atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.DAYS);
+            final NumericFilterWithTimeZone filter = objectMapper.readValue(value, NumericFilterWithTimeZone.class);
+            final ZonedDateTime truncatedToDay = Instant.ofEpochMilli(filter.value).atZone(ZoneId.of(filter.timeZone)).truncatedTo(ChronoUnit.DAYS);
             final Instant beginningOfDay = truncatedToDay.toInstant();
             final Instant beginningOfNextDay = truncatedToDay.plus(1, ChronoUnit.DAYS).toInstant();
-            switch (numericFilter.operator) {
+            switch (filter.operator) {
                 case lt:
                     return cb.lessThan(path.apply(cb, r), beginningOfDay);
                 case lte:
@@ -46,7 +47,7 @@ public class UtcInstantInDayRange<TRoot> implements JpaFilter<TRoot, String> {
                             cb.greaterThanOrEqualTo(path.apply(cb, r), beginningOfDay)
                     );
                 default:
-                    throw new AssertionError(numericFilter.operator.name());
+                    throw new AssertionError(filter.operator.name());
             }
         } catch (IOException ex) {
             throw new RuntimeException(ex);

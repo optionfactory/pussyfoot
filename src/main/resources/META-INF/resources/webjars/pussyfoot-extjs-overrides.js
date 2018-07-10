@@ -1,32 +1,32 @@
-Ext.form.Action.prototype.processResponse = function(decoded){
+Ext.form.Action.prototype.processResponse = function (decoded) {
     return (this.result = decoded);
 };
 
-function callbackByHttpStatus(response){
+function callbackByHttpStatus(response) {
     var decoded = response.responseText === "" ? undefined : Ext.decode(response.responseText, true);
-    if(decoded === null){
+    if (decoded === null) {
         this.onFailure(response);
         return;
     }
-    if(this.isUpload || (this.form && this.form.hasUpload && this.form.hasUpload())){
+    if (this.isUpload || (this.form && this.form.hasUpload && this.form.hasUpload())) {
         //we get no response status from uploads so all we can do is check if it looks like an error.
         var looksLikeAnError = decoded
-        && decoded.constructor === Array 
-        && decoded.length > 0
-        && decoded[0] !== null 
-        && decoded[0] !== undefined
-        && 'context' in decoded[0]
-        && 'reason' in decoded[0]
-        && 'details' in decoded[0];
+                && decoded.constructor === Array
+                && decoded.length > 0
+                && decoded[0] !== null
+                && decoded[0] !== undefined
+                && 'context' in decoded[0]
+                && 'reason' in decoded[0]
+                && 'details' in decoded[0];
         response.status = looksLikeAnError ? 400 : 200;
-    }    
-    var transformed = Math.floor(response.status/100) === 2 
-        ? { success: true,   data: decoded }
-        : { success: false,  errors: decoded };
+    }
+    var transformed = Math.floor(response.status / 100) === 2
+            ? {success: true, data: decoded}
+    : {success: false, errors: decoded};
     this.onSuccess(transformed);
 }
 
-Ext.form.Action.prototype.createCallback = function() {
+Ext.form.Action.prototype.createCallback = function () {
     return {
         success: callbackByHttpStatus.bind(this),
         failure: callbackByHttpStatus.bind(this),
@@ -62,13 +62,46 @@ Ext.define('Ext.grid.filters.filter.UTCDate', {
     extend: 'Ext.grid.filters.filter.Date',
     alias: 'grid.filter.utcdate',
     type: 'date',
-    getSerializer: function(){
+    getSerializer: function () {
         return function (data) {
             var d = new Date(data.value);
             var utcTimestamp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)).getTime();
             data.value = JSON.stringify({value: utcTimestamp, operator: data.operator});
             delete data.operator;
-        };        
+        };
+    }
+});
+
+/*
+ * usage:
+ *   filter: {
+ *       type: 'utcDateWithTimeZone',
+ *       timeZone: jstz.determine().name()
+ *   }
+ * @type {Boolean}
+ * 
+ */
+Ext.define('Ext.grid.filters.filter.UTCDateWithTimeZone', {
+    extend: 'Ext.grid.filters.filter.Date',
+    alias: 'grid.filter.utcDateWithTimeZone',
+    type: 'date',
+    constructor: function (conf) {
+        var me = this;
+        if(!conf.hasOwnProperty("timeZone")){
+            throw 'Field "timeZone" is required';
+            
+        }
+        var defaultConf = {
+            getSerializer: function () {
+                return function (data) {
+                    var d = new Date(data.value);
+                    var utcTimestamp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)).getTime();
+                    data.value = JSON.stringify({value: utcTimestamp, operator: data.operator, timeZone: me.timeZone});
+                    delete data.operator;
+                };
+            }
+        };
+        this.callParent([Ext.merge({}, defaultConf, conf)]);
     }
 });
 
@@ -81,7 +114,7 @@ Ext.form.action.Submit.prototype.jsonSubmit = true;
 /*
  * Sorters are serialized as {"name": "name", "direction": "ASC"}
  */
-Ext.util.Sorter.prototype.serialize = function() {
+Ext.util.Sorter.prototype.serialize = function () {
     return {
         name: this.getProperty(), /*!*/
         direction: this.getDirection()
@@ -90,7 +123,7 @@ Ext.util.Sorter.prototype.serialize = function() {
 /*
  * Filters are serialized as {"name": "name", "value": "something"}
  */
-Ext.util.Filter.prototype.serialize = function() {
+Ext.util.Filter.prototype.serialize = function () {
     var result = this.getState();
     var serializer = this.getSerializer();
     delete result.id;
@@ -111,10 +144,10 @@ Ext.util.Filter.prototype.serialize = function() {
  *  {"context":"", "reason":"", "details":"" }
  * ]
  */
-Ext.form.Basic.prototype.markInvalid = function(errors) {
+Ext.form.Basic.prototype.markInvalid = function (errors) {
     var me = this,
-        e, eLen, error, value,
-        key;
+            e, eLen, error, value,
+            key;
 
     function mark(fieldId, msg) {
         var field = me.findField(fieldId);
@@ -132,7 +165,7 @@ Ext.form.Basic.prototype.markInvalid = function(errors) {
             mark(error.context, error.reason);
         }
     } else if (errors instanceof Ext.data.Errors) {
-        eLen  = errors.items.length;
+        eLen = errors.items.length;
         for (e = 0; e < eLen; e++) {
             error = errors.items[e];
 
