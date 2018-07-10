@@ -6,10 +6,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -23,30 +20,30 @@ public class UtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>
         super(path, transformer);
     }
 
-    public static Instant toInstant(ObjectMapper objectMapper, String value) {
+    public static GenericComparableFilter<Instant> toInstant(ObjectMapper objectMapper, String value) {
         try {
             final NumericFilter numericFilter = objectMapper.readValue(value, NumericFilter.class);
-            return Instant.ofEpochMilli(numericFilter.value);
+            return new GenericComparableFilter(Instant.ofEpochMilli(numericFilter.value), numericFilter.operator);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    public static LocalDate toLocalDate(ObjectMapper objectMapper, String value) {
+    public static GenericComparableFilter<LocalDate> toLocalDate(ObjectMapper objectMapper, String value) {
         try {
             final NumericFilter numericFilter = objectMapper.readValue(value, NumericFilter.class);
             final Instant referenceInstant = Instant.ofEpochMilli(numericFilter.value);
-            return LocalDateTime.ofInstant(referenceInstant, ZoneOffset.UTC).toLocalDate();
+            return new GenericComparableFilter(LocalDateTime.ofInstant(referenceInstant, ZoneOffset.UTC).toLocalDate(), numericFilter.operator);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    public static LocalDateTime toLocalDateTime(ObjectMapper objectMapper, String value) {
+    public static GenericComparableFilter<LocalDateTime> toLocalDateTime(ObjectMapper objectMapper, String value) {
         try {
             final NumericFilter numericFilter = objectMapper.readValue(value, NumericFilter.class);
             final Instant referenceInstant = Instant.ofEpochMilli(numericFilter.value);
-            return LocalDateTime.ofInstant(referenceInstant, ZoneOffset.UTC);
+            return new GenericComparableFilter(LocalDateTime.ofInstant(referenceInstant, ZoneOffset.UTC), numericFilter.operator);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
