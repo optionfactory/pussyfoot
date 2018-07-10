@@ -1,5 +1,6 @@
 package net.optionfactory.pussyfoot.hibernate.extjs;
 
+import java.time.LocalDate;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.persistence.criteria.CriteriaBuilder;

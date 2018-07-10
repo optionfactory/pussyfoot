@@ -22,7 +22,7 @@ public class PageRequest {
 
     @Override
     public String toString() {
-        return "PageRequest{" + "slice=" + slice + ", sorters=" + sorters + ", filters=" + filters + '}';
+        return "PageRequest{" + "slice=" + slice + ", sorters=" + Arrays.toString(sorters) + ", filters=" + Arrays.toString(filters) + '}';
     }
 
     public static Builder builder() {

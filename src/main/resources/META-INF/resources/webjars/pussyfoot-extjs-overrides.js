@@ -66,7 +66,7 @@ Ext.define('Ext.grid.filters.filter.UTCDate', {
         return function (data) {
             var d = new Date(data.value);
             var utcTimestamp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)).getTime();
-            data.value = JSON.stringify({timestamp: utcTimestamp, operator: data.operator});
+            data.value = JSON.stringify({value: utcTimestamp, operator: data.operator});
             delete data.operator;
         };        
     }
