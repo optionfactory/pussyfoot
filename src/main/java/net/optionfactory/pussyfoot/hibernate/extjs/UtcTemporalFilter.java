@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.Temporal;
 import java.util.function.BiFunction;
@@ -18,6 +19,16 @@ public class UtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>
 
     public UtcTemporalFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<String, GenericComparableFilter<T>> transformer) {
         super(path, transformer);
+    }
+
+    public static GenericComparableFilter<Instant> toInstantWithTimeZone(ObjectMapper objectMapper, String value) {
+        try {
+            final DateFilterWithTimeZone filter = objectMapper.readValue(value, DateFilterWithTimeZone.class);
+            final Instant reference = Instant.ofEpochMilli(filter.value).atZone(ZoneId.of(filter.timeZone)).toInstant();
+            return new GenericComparableFilter(reference, filter.operator);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static GenericComparableFilter<Instant> toInstant(ObjectMapper objectMapper, String value) {

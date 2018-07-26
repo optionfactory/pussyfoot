@@ -12,7 +12,7 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.extjs.NumericFilter;
-import net.optionfactory.pussyfoot.extjs.NumericFilterWithTimeZone;
+import net.optionfactory.pussyfoot.extjs.DateFilterWithTimeZone;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 public class UtcInstantInDayWithTimeZoneRange<TRoot> implements JpaFilter<TRoot, String> {
@@ -28,7 +28,7 @@ public class UtcInstantInDayWithTimeZoneRange<TRoot> implements JpaFilter<TRoot,
     @Override
     public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> r, String value) {
         try {
-            final NumericFilterWithTimeZone filter = objectMapper.readValue(value, NumericFilterWithTimeZone.class);
+            final DateFilterWithTimeZone filter = objectMapper.readValue(value, DateFilterWithTimeZone.class);
             final ZonedDateTime truncatedToDay = Instant.ofEpochMilli(filter.value).atZone(ZoneId.of(filter.timeZone)).truncatedTo(ChronoUnit.DAYS);
             final Instant beginningOfDay = truncatedToDay.toInstant();
             final Instant beginningOfNextDay = truncatedToDay.plus(1, ChronoUnit.DAYS).toInstant();
