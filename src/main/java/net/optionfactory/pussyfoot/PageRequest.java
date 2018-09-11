@@ -53,6 +53,7 @@ public class PageRequest {
         /**
          * Add a new filter to the current ones
          *
+         * @param <T> The type of the value contained in the filter
          * @param filter the new filter to be added
          * @return the Builder
          */

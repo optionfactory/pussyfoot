@@ -17,7 +17,7 @@ import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 /**
- * @deprecated replaced by {@link UtcLocalDateFilter}
+ * @deprecated replaced by {@link UtcTemporalFilter}
  */
 public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> implements JpaFilter<TRoot, String> {
 

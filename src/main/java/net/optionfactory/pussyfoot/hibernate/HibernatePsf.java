@@ -30,7 +30,7 @@ import org.hibernate.query.Query;
 /**
  * Hibernate implementation of the pagination, sorting, filtering API.
  *
- * @param <TRoot>
+ * @param <TRoot> The type of the root class to query from
  */
 public class HibernatePsf<TRoot> implements Psf<TRoot> {
 

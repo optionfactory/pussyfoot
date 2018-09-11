@@ -13,7 +13,7 @@ import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 /**
- * @deprecated replaced by {@link UtcLocalDateFilter}
+ * @deprecated replaced by {@link UtcInstantInDayRange}
  */
 public class ExtjsUtcFilter<TRoot, T extends Instant> implements JpaFilter<TRoot, String> {
 
