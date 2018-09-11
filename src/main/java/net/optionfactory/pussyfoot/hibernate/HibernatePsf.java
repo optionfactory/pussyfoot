@@ -1,12 +1,13 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,6 +37,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
     private final SessionFactory hibernate;
     private final Class<TRoot> klass;
+    private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
     private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers;
@@ -43,12 +45,14 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public HibernatePsf(
             SessionFactory hibernate,
             Class<TRoot> klass,
+            Optional<Consumer<Root<TRoot>>> rootEnhancer,
             ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
             ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers
     ) {
         this.hibernate = hibernate;
         this.klass = klass;
+        this.rootEnhancer = rootEnhancer;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
         this.reducers = reducers;
@@ -87,6 +91,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
         final Root<TRoot> sliceRoot = scq.from(klass);
+        rootEnhancer.ifPresent(re -> re.accept(sliceRoot));
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
         final List<Order> orderers = new ArrayList<>();
@@ -127,6 +132,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         private final ConcurrentMap<String, JpaFilter<TRoot, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
+        private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
 
         public <T> Builder<TRoot> addFilter(String name, JpaFilter<TRoot, T> filter) {
             filters.put(name, filter);
@@ -175,6 +181,11 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             });
         }
 
+        public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
+            this.rootEnhancer = Optional.of(rootEnhancer);
+            return this;
+        }
+
         public Builder<TRoot> addSorter(String name) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
@@ -189,7 +200,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         public HibernatePsf build(Class<TRoot> clazz, SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, clazz, filters, sorters, reducers);
+            return new HibernatePsf(hibernate, clazz, rootEnhancer, filters, sorters, reducers);
         }
     }
 }
