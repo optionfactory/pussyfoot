@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -55,6 +56,16 @@ public class UtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>
             final NumericFilter numericFilter = objectMapper.readValue(value, NumericFilter.class);
             final Instant referenceInstant = Instant.ofEpochMilli(numericFilter.value);
             return new GenericComparableFilter(LocalDateTime.ofInstant(referenceInstant, ZoneOffset.UTC), numericFilter.operator);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+    
+    public static GenericComparableFilter<ZonedDateTime> toZonedDateTime(ObjectMapper objectMapper, String value) {
+        try {
+            final DateFilterWithTimeZone filter = objectMapper.readValue(value, DateFilterWithTimeZone.class);
+            final ZonedDateTime reference = Instant.ofEpochMilli(filter.value).atZone(ZoneId.of(filter.timeZone));
+            return new GenericComparableFilter(reference, filter.operator);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

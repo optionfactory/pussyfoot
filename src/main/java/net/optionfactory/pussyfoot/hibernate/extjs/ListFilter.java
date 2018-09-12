@@ -29,6 +29,7 @@ public class ListFilter<TRoot, T> implements JpaFilter<TRoot, String> {
             if (!listUnmarshalled.contains(null)) {
                 return path.apply(cb, root).in(listUnmarshalled);
             }
+            
             final List<?> withoutNulls = listUnmarshalled.stream().filter(i -> i != null).collect(Collectors.toList());
             if (withoutNulls.isEmpty()) {
                 return path.apply(cb, root).isNull();
