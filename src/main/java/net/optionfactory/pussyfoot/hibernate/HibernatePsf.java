@@ -37,6 +37,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
     private final SessionFactory hibernate;
     private final Class<TRoot> klass;
+    private final boolean useCountDistinct;
     private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
     private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
@@ -45,6 +46,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public HibernatePsf(
             SessionFactory hibernate,
             Class<TRoot> klass,
+            boolean useCountDistinct,
             Optional<Consumer<Root<TRoot>>> rootEnhancer,
             ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
@@ -52,6 +54,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     ) {
         this.hibernate = hibernate;
         this.klass = klass;
+        this.useCountDistinct = useCountDistinct;
         this.rootEnhancer = rootEnhancer;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
@@ -71,7 +74,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
         final Root<TRoot> countRoot = ccq.from(klass);
         final List<Selection<?>> countSelectors = new ArrayList<>();
-        countSelectors.add(cb.countDistinct(countRoot).alias("psfcount"));
+        countSelectors.add((this.useCountDistinct ? cb.countDistinct(countRoot) : cb.count(countRoot)).alias("psfcount"));
         reducers.entrySet().stream()
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
@@ -129,10 +132,16 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
      */
     public static class Builder<TRoot> {
 
+        private boolean useCountDistinct = false;
         private final ConcurrentMap<String, JpaFilter<TRoot, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
+
+        public <T> Builder<TRoot> useCountDistinct() {
+            this.useCountDistinct = true;
+            return this;
+        }
 
         public <T> Builder<TRoot> addFilter(String name, JpaFilter<TRoot, T> filter) {
             filters.put(name, filter);
@@ -200,7 +209,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         public HibernatePsf build(Class<TRoot> clazz, SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, clazz, rootEnhancer, filters, sorters, reducers);
+            return new HibernatePsf(hibernate, clazz, useCountDistinct, rootEnhancer, filters, sorters, reducers);
         }
     }
 }
