@@ -1,5 +1,13 @@
 package net.optionfactory.pussyfoot.hibernate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,10 +28,15 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
+import javax.persistence.metamodel.SingularAttribute;
+import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
 import net.optionfactory.pussyfoot.SliceRequest;
 import net.optionfactory.pussyfoot.SortRequest;
+import net.optionfactory.pussyfoot.extjs.GenericComparableFilter;
+import net.optionfactory.pussyfoot.hibernate.extjs.NumberFilter;
+import net.optionfactory.pussyfoot.hibernate.extjs.UtcTemporalFilter;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -138,13 +151,19 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
 
-        public <T> Builder<TRoot> useCountDistinct() {
+        /**
+         * Enables the use of "count (distinct [...])" instead of "count([...])"
+         * when querying for total rows coun
+         *
+         * @return
+         */
+        public Builder<TRoot> useCountDistinct() {
             this.useCountDistinct = true;
             return this;
         }
 
-        public <T> Builder<TRoot> addFilter(String name, JpaFilter<TRoot, T> filter) {
-            filters.put(name, filter);
+        public <T> Builder<TRoot> addFilter(String filterName, JpaFilter<TRoot, T> filter) {
+            filters.put(filterName, filter);
             return this;
         }
 
@@ -174,27 +193,42 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             return this;
         }
 
-        public Builder<TRoot> addSorter(String name, Function<Root<TRoot>, Path<?>> sorter) {
+        /**
+         * Defines a sorter based on the specified path
+         *
+         * @param name name of the sorter
+         * @param path path to use for sorting data
+         * @return the builder itself, for chaining
+         */
+        public Builder<TRoot> addSorter(String name, Function<Root<TRoot>, Path<?>> path) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
-                orderingContext.sortExpression = sorter.apply(root);
+                orderingContext.sortExpression = path.apply(root);
                 return orderingContext;
             });
         }
 
-        public Builder<TRoot> addSorter(String name, String field) {
+        /**
+         * Defines a sorter based on the specified column name
+         *
+         * @param name name of the sorter
+         * @param column the name of the field/column to sort by
+         * @return the builder itself, for chaining
+         */
+        public <T> Builder<TRoot> addSorter(String name, SingularAttribute<TRoot, T> column) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
-                orderingContext.sortExpression = root.get(field);
+                orderingContext.sortExpression = root.get(column);
                 return orderingContext;
             });
         }
 
-        public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
-            this.rootEnhancer = Optional.of(rootEnhancer);
-            return this;
-        }
-
+        /**
+         * Defines a sorter where name and column name coincide
+         *
+         * @param name name of the sorter
+         * @return the builder itself, for chaining
+         */
         public Builder<TRoot> addSorter(String name) {
             return addSorter(name, (cb, root) -> {
                 final SorterContext orderingContext = new SorterContext();
@@ -205,6 +239,11 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         public Builder<TRoot> addReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
             reducers.put(name, reduction);
+            return this;
+        }
+
+        public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
+            this.rootEnhancer = Optional.of(rootEnhancer);
             return this;
         }
 

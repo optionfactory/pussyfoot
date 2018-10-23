@@ -5,8 +5,8 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
 @FunctionalInterface
-public interface JpaFilter<TRoot, T> {
+public interface JpaFilter<TRoot, TRawVal> {
 
-    Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> r, T value);
+    Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TRawVal rawValue);
 
 }
