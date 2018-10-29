@@ -45,6 +45,20 @@ Ext.grid.filters.filter.Number.prototype.getSerializer = function () {
         delete data.operator;
     };
 };
+
+Ext.define('Ext.grid.filters.filter.LocalDate', {
+    extend: 'Ext.grid.filters.filter.Date',
+    alias: 'grid.filter.localdate',
+    type: 'localdate',
+    getSerializer: function(){
+        return function (data) {
+            var d = new Date(data.value);
+            data.value = JSON.stringify({date: [d.getFullYear(), d.getMonth() + 1, d.getDate()], operator: data.operator});
+            delete data.operator;
+        };
+    }
+});
+
 Ext.grid.filters.filter.Date.prototype.getSerializer = function () {
     return function (data) {
         data.value = JSON.stringify({timestamp: new Date(data.value).getTime(), operator: data.operator});
