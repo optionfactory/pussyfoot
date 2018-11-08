@@ -78,7 +78,6 @@ Ext.define('Ext.grid.filters.filter.UTCDate', {
  *       type: 'utcDateWithTimeZone',
  *       timeZone: jstz.determine().name()
  *   }
- * @type {Boolean}
  * 
  */
 Ext.define('Ext.grid.filters.filter.UTCDateWithTimeZone', {
@@ -89,7 +88,6 @@ Ext.define('Ext.grid.filters.filter.UTCDateWithTimeZone', {
         var me = this;
         if(!conf.hasOwnProperty("timeZone")){
             throw 'Field "timeZone" is required';
-            
         }
         var defaultConf = {
             getSerializer: function () {

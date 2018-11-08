@@ -1,9 +1,9 @@
 package net.optionfactory.pussyfoot.extjs;
 
-@Deprecated
 /**
- * @deprecated replaced by {@link NumericFilter}
+ * @deprecated replaced by {@link UTCDate}
  */
+@Deprecated
 public class DateFilter {
 
     public long timestamp;

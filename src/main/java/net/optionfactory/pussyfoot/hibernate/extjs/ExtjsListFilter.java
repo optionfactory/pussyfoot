@@ -8,13 +8,17 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import net.optionfactory.pussyfoot.extjs.ExtJs;
+import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
-@Deprecated
 /**
- * @deprecated replaced by {@link ListFilter}
+ * @deprecated replaced by
+ * {@link Builder#withFilterIn(java.lang.String, java.util.function.Function)}
+ * in conjunction with {@link ExtJs#valuesList }
  */
-public class ExtjsListFilter<TRoot,T> implements JpaFilter<TRoot,String> {
+@Deprecated
+public class ExtjsListFilter<TRoot, T> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;
     private final ObjectMapper objectMapper;
@@ -27,7 +31,7 @@ public class ExtjsListFilter<TRoot,T> implements JpaFilter<TRoot,String> {
     @Override
     public Predicate predicateFor(CriteriaBuilder cb, Root<TRoot> root, String value) {
         try {
-            final List listUnmarshalled = objectMapper.readValue( value, List.class);
+            final List listUnmarshalled = objectMapper.readValue(value, List.class);
             return path.apply(cb, root).in(listUnmarshalled);
         } catch (IOException ex) {
             throw new RuntimeException(ex);

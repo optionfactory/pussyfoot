@@ -6,14 +6,22 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import net.optionfactory.pussyfoot.extjs.ExtJs;
 import net.optionfactory.pussyfoot.extjs.GenericComparableFilter;
 import static net.optionfactory.pussyfoot.extjs.Operator.eq;
 import static net.optionfactory.pussyfoot.extjs.Operator.gt;
 import static net.optionfactory.pussyfoot.extjs.Operator.gte;
 import static net.optionfactory.pussyfoot.extjs.Operator.lt;
 import static net.optionfactory.pussyfoot.extjs.Operator.lte;
+import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
+/**
+ * @deprecated replaced by
+ * {@link Builder#withFilterComparator(java.lang.String, java.util.function.Function)}
+ * in conjunction with {@link ExtJs#comparator }
+ */
+@Deprecated
 public class ComparableFilter<TRoot, T extends Comparable<? super T>> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;

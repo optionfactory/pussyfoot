@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -14,11 +15,17 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
 /**
- * @deprecated replaced by {@link UtcTemporalFilter}
+ * @deprecated replaced by
+ * {@link Builder#withFilterComparator(java.lang.String, java.util.function.Function, java.util.function.Function)}
+ * in conjunction with wither {@link ExtJs#utcDate } or
+ * {@link ExtJs#utcDateWithTimeZone} and a converter function from
+ * {@link ZonedDateTime} to your column's type
  */
+@Deprecated
 public class ExtjsUtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;

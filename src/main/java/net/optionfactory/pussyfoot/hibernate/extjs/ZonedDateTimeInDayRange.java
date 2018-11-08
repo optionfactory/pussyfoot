@@ -12,8 +12,17 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.extjs.DateFilterWithTimeZone;
+import net.optionfactory.pussyfoot.extjs.ExtJs;
+import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
+/**
+ * @deprecated replaced by
+ * {@link Builder#withFilterDateIn(java.lang.String, java.util.function.Function, java.util.function.Function)}
+ * in conjunction with {@link ExtJs#utcDateWithTimeZone } and a converter function from
+ * {@link ZonedDateTime} to your column's type
+ */
+@Deprecated
 public class ZonedDateTimeInDayRange<TRoot> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<ZonedDateTime>> path;

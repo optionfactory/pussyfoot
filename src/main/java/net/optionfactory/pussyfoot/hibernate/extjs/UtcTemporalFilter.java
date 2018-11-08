@@ -15,7 +15,16 @@ import java.util.function.Function;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Root;
+import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 
+/**
+ * @deprecated replaced by
+ * {@link Builder#withFilterComparator(java.lang.String, java.util.function.Function, java.util.function.Function)}
+ * in conjunction with wither {@link ExtJs#utcDate } or
+ * {@link ExtJs#utcDateWithTimeZone} and a converter function from
+ * {@link ZonedDateTime} to your column's type
+ */
+@Deprecated
 public class UtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>> extends ComparableFilter<TRoot, T> {
 
     public UtcTemporalFilter(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<String, GenericComparableFilter<T>> transformer) {
@@ -60,7 +69,7 @@ public class UtcTemporalFilter<TRoot, T extends Temporal & Comparable<? super T>
             throw new RuntimeException(ex);
         }
     }
-    
+
     public static GenericComparableFilter<ZonedDateTime> toZonedDateTime(ObjectMapper objectMapper, String value) {
         try {
             final DateFilterWithTimeZone filter = objectMapper.readValue(value, DateFilterWithTimeZone.class);

@@ -1,5 +1,9 @@
 package net.optionfactory.pussyfoot.extjs;
 
+/**
+ * @deprecated replaced by {@link UTCDateWithTimeZone}
+ */
+@Deprecated
 public class DateFilterWithTimeZone {
 
     public Long value;

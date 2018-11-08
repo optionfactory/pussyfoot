@@ -11,6 +11,12 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import net.optionfactory.pussyfoot.hibernate.JpaFilter;
 
+/**
+ * @deprecated replaced by
+ * {@link Builder#withFilterIn(java.lang.String, java.util.function.Function)}
+ * in conjunction with {@link ExtJs#valuesList }
+ */
+@Deprecated
 public class ListFilter<TRoot, T> implements JpaFilter<TRoot, String> {
 
     private final BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path;

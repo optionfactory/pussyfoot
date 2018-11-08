@@ -1,13 +1,14 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import net.optionfactory.pussyfoot.hibernate.builders.SorterBuilder;
+import net.optionfactory.pussyfoot.hibernate.builders.ComparatorFilterBuilder;
+import net.optionfactory.pussyfoot.hibernate.builders.EqualFilterBuilder;
+import net.optionfactory.pussyfoot.hibernate.builders.LikeFilterBuilder;
+import net.optionfactory.pussyfoot.hibernate.builders.DateInFilterBuilder;
+import net.optionfactory.pussyfoot.hibernate.builders.InFilterBuilder;
 import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
+import net.optionfactory.pussyfoot.Psf;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,8 @@ import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
 import net.optionfactory.pussyfoot.SliceRequest;
 import net.optionfactory.pussyfoot.SortRequest;
-import net.optionfactory.pussyfoot.extjs.GenericComparableFilter;
-import net.optionfactory.pussyfoot.hibernate.extjs.NumberFilter;
-import net.optionfactory.pussyfoot.hibernate.extjs.UtcTemporalFilter;
+import net.optionfactory.pussyfoot.extjs.Operator;
+import net.optionfactory.pussyfoot.extjs.Comparator;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -153,38 +153,275 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         /**
          * Enables the use of "count (distinct [...])" instead of "count([...])"
-         * when querying for total rows coun
+         * when querying for total rows count
          *
-         * @return
+         * @return builder itself, in order to chain further filters/sorterers
          */
         public Builder<TRoot> useCountDistinct() {
             this.useCountDistinct = true;
             return this;
         }
 
+        public SorterBuilder<TRoot> withSorter(String sorterName) {
+            return new SorterBuilder<>(this, sorterName);
+        }
+
+        public Builder<TRoot> withSorter(String sorterName, BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorterContextBuilder) {
+            this.sorters.putIfAbsent(sorterName, new ArrayList<>());
+            this.sorters.get(sorterName).add(sorterContextBuilder);
+            return this;
+        }
+
+        public <T> Builder<TRoot> withFilter(String filterName, JpaFilter<TRoot, T> filter) {
+            filters.put(filterName, filter);
+            return this;
+        }
+
+        /**
+         * Defines an equality filter.
+         *
+         * <p>
+         * SQL equivalent when applied:<br/>
+         * ... where col = :value
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TCol> The type of the column this filter applies to, and of
+         * the value contained in the {@link PageRequest}'s
+         * {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         * @see EqualFilterBuilder
+         */
+        public <TCol> EqualFilterBuilder<TRoot, TCol, TCol> withFilterEqual(String filterName) {
+            return new EqualFilterBuilder<>(this, filterName, Function.identity());
+        }
+
+        /**
+         * Defines an equality filter.
+         *
+         * <p>
+         * SQL equivalent when applied:<br/>
+         * ... where col = :value:
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TRawVal> The type of the value contained in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param <TCol> The type of the column this filter applies to the value
+         * contained in the {@link PageRequest}'s {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param filterValueAdapter a function to adapt the filter value to the
+         * column value
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public <TRawVal, TCol> EqualFilterBuilder<TRoot, TRawVal, TCol> withFilterEqual(String filterName, Function<TRawVal, TCol> filterValueAdapter) {
+            return new EqualFilterBuilder<>(this, filterName, filterValueAdapter);
+        }
+
+        /**
+         * Defines an partial, case-insensitive match filter on string columns.
+         *
+         * <p>
+         * PSQL equivalent when applied:<br/>
+         * ... where col ilike %:value:%
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public LikeFilterBuilder<TRoot, String> withFilterLike(String filterName) {
+            return new LikeFilterBuilder<>(this, filterName, Function.identity());
+        }
+
+        /**
+         * Defines an partial, case-insensitive match filter on string columns.
+         *
+         * <p>
+         * PSQL equivalent when applied:<br/>
+         * ... where col ilike %:value:%
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TRawVal> The type of the value contained in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param filterValueAdapter a function to adapt the filter value to the
+         * column value
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public <TRawVal> LikeFilterBuilder<TRoot, TRawVal> withFilterLike(String filterName, Function<TRawVal, String> filterValueAdapter) {
+            return new LikeFilterBuilder<>(this, filterName, filterValueAdapter);
+        }
+
+        /**
+         * Defines an {@link Operator}-based filter against a comparable value
+         *
+         * <p>
+         * SQL equivalent when applied, depending on the
+         * {@link Comparator#operator}:<br/>
+         * ... where col OPERATOR :value:
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TRawVal> The type of the value contained in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param <TCol> The type of the column this filter applies to the value
+         * contained in the {@link PageRequest}'s {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public <TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, Comparator<TCol>, TCol> withFilterComparator(String filterName) {
+            return new ComparatorFilterBuilder<>(this, filterName, Function.identity());
+        }
+
+        /**
+         * Defines an {@link Operator}-based filter against a comparable value
+         *
+         * <p>
+         * SQL equivalent when applied, depending on the
+         * {@link Comparator#operator}:<br/>
+         * ... where col OPERATOR :value:
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TRawVal> The type of the value contained in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param <TCol> The type of the column this filter applies to the value
+         * contained in the {@link PageRequest}'s {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param filterValueAdapter a function to adapt the raw filter value to
+         * final {@link Comparator}
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public <TRawVal, TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, TRawVal, TCol> withFilterComparator(String filterName, Function<TRawVal, Comparator<TCol>> filterValueAdapter) {
+            return new ComparatorFilterBuilder<>(this, filterName, filterValueAdapter);
+        }
+
+        public <TRawVal, TComparatorValue, TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, TRawVal, TCol> withFilterComparator(String filterName, Function<TRawVal, Comparator<TComparatorValue>> filterValueAdapter, Function<TComparatorValue, TCol> filterToColumnConverter) {
+            return new ComparatorFilterBuilder<>(this, filterName, v -> filterValueAdapter.apply(v).map(filterToColumnConverter));
+        }
+
+        public <TRawVal, TCol extends Temporal & Comparable<TCol>> DateInFilterBuilder<TRoot, TRawVal, TCol> withFilterDateIn(String filterName, Function<TRawVal, Comparator<ZonedDateTime>> filterValueAdapter, Function<ZonedDateTime, TCol> filterToColumnConverter) {
+            return new DateInFilterBuilder<>(this, filterName, filterValueAdapter, filterToColumnConverter);
+        }
+
+        public <TRawVal, TCol extends Temporal & Comparable<TCol>> DateInFilterBuilder<TRoot, Comparator<ZonedDateTime>, TCol> withFilterDateIn(String filterName, Function<ZonedDateTime, TCol> filterToColumnConverter) {
+            return new DateInFilterBuilder<>(this, filterName, Function.identity(), filterToColumnConverter);
+        }
+
+        /**
+         * Defines an filter that matches a (calculated) column's value against
+         * a list of possible values
+         *
+         * <p>
+         * SQL equivalent when applied:<br/>
+         * ... where col IN (:val1:,:val2:, ... )
+         * </p>
+         * <p>
+         * This filter is applied when a {@link PageRequest} containing a
+         * {@link FilterRequest} with the field {@link FilterRequest#name}
+         * matching the name of this filter is applied.
+         * </p>
+         *
+         * @param <TRawVal> The type of the value contained in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param <TCol> The type of the column this filter applies to the value
+         * contained in the {@link PageRequest}'s {@link FilterRequest}
+         * @param filterName the name of the filter to be referenced in the
+         * {@link PageRequest}'s {@link FilterRequest}
+         * @param filterValueAdapter a function to adapt the raw filter value to
+         * final {@link Comparator}
+         * @return a filter builder, to be used to specify the column(s) to
+         * filter on
+         */
+        public <TCol extends Comparable<TCol>> InFilterBuilder<TRoot, List<TCol>, TCol> withFilterIn(String filterName) {
+            return new InFilterBuilder<>(this, filterName, Function.identity());
+        }
+
+        public <TRawVal, TCol extends Comparable<TCol>> InFilterBuilder<TRoot, TRawVal, TCol> withFilterIn(String filterName, Function<TRawVal, List<TCol>> filterValueAdapter) {
+            return new InFilterBuilder<>(this, filterName, filterValueAdapter);
+        }
+
+        /**
+         * @deprecated replaced by {@link #withFilter(java.lang.String, net.optionfactory.pussyfoot.hibernate.JpaFilter)
+         * }
+         */
         public <T> Builder<TRoot> addFilter(String filterName, JpaFilter<TRoot, T> filter) {
             filters.put(filterName, filter);
             return this;
         }
 
-        public <T> Builder<TRoot> addFilterEquals(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path) {
-            return addFilter(name, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
+        /**
+         * @deprecated replaced by {@link #withFilterEqual(java.lang.String)}
+         */
+        public <T> Builder<TRoot> addFilterEquals(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path) {
+            return withFilter(filterName, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
         }
 
-        public <T, X> Builder<TRoot> addFilterEquals(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<X, T> valueAdapter) {
-            return addFilter(name, (CriteriaBuilder cb, Root<TRoot> root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
+        /**
+         * @deprecated replaced by {@link #withFilterEqual(java.lang.String) }
+         */
+        public <T, X> Builder<TRoot> addFilterEquals(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<X, T> valueAdapter) {
+            return withFilter(filterName, (CriteriaBuilder cb, Root<TRoot> root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
         }
 
-        public <T> Builder<TRoot> addFilterEquals(String name) {
-            return addFilter(name, (cb, root, value) -> cb.equal(root.get(name), value));
+        /**
+         * @deprecated replaced by {@link #withFilterEqual(java.lang.String) }
+         */
+        public <T> Builder<TRoot> addFilterEquals(String filterName) {
+            return withFilter(filterName, (cb, root, value) -> cb.equal(root.get(filterName), value));
         }
 
-        public Builder<TRoot> addFilterLike(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<String>> path) {
-            return addFilter(name, (CriteriaBuilder cb, Root<TRoot> root, String value) -> {
-                return Predicates.like(cb, path.apply(cb, root), value);
+        /**
+         * @deprecated replaced by {@link #withFilterLike(java.lang.String) }
+         */
+        public Builder<TRoot> addFilterLike(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<String>> path) {
+            return withFilter(filterName, (CriteriaBuilder cb, Root<TRoot> root, String value) -> {
+                return StringPredicates.like(cb, path.apply(cb, root), value);
             });
         }
 
+        /**
+         * @deprecated replaced by {@link #withSorter }
+         */
         public Builder<TRoot> addSorter(String name, BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorter) {
             if (!sorters.containsKey(name)) {
                 sorters.put(name, new ArrayList<>());
@@ -194,11 +431,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         /**
-         * Defines a sorter based on the specified path
-         *
-         * @param name name of the sorter
-         * @param path path to use for sorting data
-         * @return the builder itself, for chaining
+         * @deprecated replaced by {@link #withSorter }
          */
         public Builder<TRoot> addSorter(String name, Function<Root<TRoot>, Path<?>> path) {
             return addSorter(name, (cb, root) -> {
@@ -209,11 +442,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         /**
-         * Defines a sorter based on the specified column name
-         *
-         * @param name name of the sorter
-         * @param column the name of the field/column to sort by
-         * @return the builder itself, for chaining
+         * @deprecated replaced by {@link #withSorter }
          */
         public <T> Builder<TRoot> addSorter(String name, SingularAttribute<TRoot, T> column) {
             return addSorter(name, (cb, root) -> {
@@ -224,10 +453,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         /**
-         * Defines a sorter where name and column name coincide
-         *
-         * @param name name of the sorter
-         * @return the builder itself, for chaining
+         * @deprecated replaced by {@link #withSorter }
          */
         public Builder<TRoot> addSorter(String name) {
             return addSorter(name, (cb, root) -> {
@@ -237,12 +463,21 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             });
         }
 
-        public Builder<TRoot> addReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
+        public Builder<TRoot> withReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
             reducers.put(name, reduction);
             return this;
         }
 
+        /**
+         * @deprecated replaced by {@link #withRootEnhancer}
+         */
+        @Deprecated
         public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
+            this.rootEnhancer = Optional.of(rootEnhancer);
+            return this;
+        }
+
+        public Builder<TRoot> withRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
             this.rootEnhancer = Optional.of(rootEnhancer);
             return this;
         }
