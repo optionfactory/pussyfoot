@@ -1,5 +1,6 @@
 package net.optionfactory.pussyfoot.hibernate.predicates;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -7,10 +8,10 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import net.optionfactory.pussyfoot.hibernate.SimplePredicateBuilder;
 
-public class In<T> implements SimplePredicateBuilder<T, List<T>> {
+public class In<T,Coll extends Collection<T>> implements SimplePredicateBuilder<T, Coll> {
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Expression<T> path, List<T> filterValue) {
+    public Predicate predicateFor(CriteriaBuilder cb, Expression<T> path, Coll filterValue) {
         /* Normally, a filterValue with no elements should actually never reach 
          * here, as there is no point in issuing a FilterRequest with an empty 
          * array, hoever older versions of Ext did, in some cases, issue empty lists

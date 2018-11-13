@@ -17,4 +17,7 @@ public interface Psf<T> {
      * @return a {@link PageResponse} containing the requested page of records
      */
     PageResponse<T> queryForPage(PageRequest request);
+
+    PageResponse<T> queryForPageInfinteScrolling(PageRequest request);
+
 }

@@ -3,6 +3,7 @@ package net.optionfactory.pussyfoot.hibernate;
 import com.fasterxml.jackson.databind.util.ClassUtil;
 import net.optionfactory.pussyfoot.Psf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,12 +63,6 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         this.reducers = reducers;
     }
 
-    private <T> Predicate predicateForNameAndValue(String name, T value, CriteriaBuilder cb, Root<TRoot> r) {
-        final Pair<String, Class<? extends Object>> filterKey = Pair.of(name, value.getClass());
-        final CustomPredicateBuilder<TRoot, T> filter = (CustomPredicateBuilder<TRoot, T>) availableFilters.get(filterKey);
-        return filter.predicateFor(cb, r, value);
-    }
-
     @Override
     public PageResponse<TRoot> queryForPage(PageRequest request) {
         final Session session = hibernate.getCurrentSession();
@@ -81,13 +76,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
-        final List<Predicate> predicates = Stream.of(request.filters)
-                .filter(filterRequest -> {
-                    final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
-                    return availableFilters.containsKey(key);
-                }).map(filterRequest -> {
-            return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
-        }).collect(Collectors.toList());
+        List<Predicate> predicates = requestToPredicates(request, ccq, cb, countRoot);
         ccq.where(cb.and(predicates.toArray(new Predicate[0])));
         final Query<Tuple> countQuery = session.createQuery(ccq);
         final Tuple countResult = countQuery.getSingleResult();
@@ -96,6 +85,22 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .filter(e -> reducers.containsKey(e.getAlias()))
                 .collect(Collectors.toMap(t -> t.getAlias(), t -> countResult.get(t.getAlias())));
 
+        final List<TRoot> slice = executeSlice(cb, request,  session);
+        
+        return PageResponse.of(total, slice, reductions);
+    }
+
+    @Override
+    public PageResponse<TRoot> queryForPageInfinteScrolling(PageRequest request) {
+        final Session session = hibernate.getCurrentSession();
+        final CriteriaBuilder cb = session.getCriteriaBuilder();
+        
+        final List<TRoot> slice = executeSlice(cb, request,  session);
+        long totalRecords = slice.size() < request.slice.limit ? request.slice.start + slice.size() : request.slice.start + slice.size() + 1;
+        return PageResponse.of(totalRecords, slice, Collections.EMPTY_MAP);
+    }
+
+    private List<TRoot> executeSlice(final CriteriaBuilder cb, PageRequest request, final Session session) {
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
         final Root<TRoot> sliceRoot = scq.from(klass);
         rootEnhancer.ifPresent(re -> re.accept(sliceRoot));
@@ -113,22 +118,38 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                     });
                 }).collect(Collectors.toList())
         );
-
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
+        final List<Predicate> predicates = requestToPredicates(request, scq, cb, sliceRoot);
         scq.where(cb.and(predicates.toArray(new Predicate[0])));
-
         scq.orderBy(orderers);
         final Query<Tuple> sliceQuery = session.createQuery(scq);
         sliceQuery.setFirstResult(request.slice.start);
         if (request.slice.limit != SliceRequest.UNLIMITED) {
             sliceQuery.setMaxResults(request.slice.limit);
         }
-
         final List<TRoot> slice = sliceQuery.getResultList()
                 .stream()
                 .map(tuple -> tuple.get(0, klass))
                 .collect(Collectors.toList());
-        return PageResponse.of(total, slice, reductions);
+        return slice;
+    }
+
+    private List<Predicate> requestToPredicates(PageRequest request, final CriteriaQuery<Tuple> ccq, final CriteriaBuilder cb, final Root<TRoot> root) {
+        final List<Predicate> predicates = Stream.of(request.filters)
+                .filter(filterRequest -> {
+                    final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
+                    return availableFilters.containsKey(key);
+                }).map(filterRequest -> {
+            return predicateForNameAndValue(filterRequest.name, filterRequest.value, ccq, cb, root);
+        }).collect(Collectors.toList());
+        return predicates;
+    }
+
+    private <T> Predicate predicateForNameAndValue(String name, T value, final CriteriaQuery<Tuple> query, CriteriaBuilder cb, Root<TRoot> r) {
+        final Pair<String, Class<? extends Object>> filterKey = Pair.of(name, value.getClass());
+        final FilterRequestProcessor<TRoot, T, Object> filter = (FilterRequestProcessor<TRoot, T, Object>) availableFilters.get(filterKey);
+        final Object filterFinalValue = filter.filterValueAdapter.apply(value);
+        return filter.predicateBuilder.predicateFor(query, cb, r, filterFinalValue);
     }
 
     /**
@@ -197,8 +218,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         /**
-         * Allows to apply side effects onPath the query's {@link Root}. Main use
-         * case is to specify eager joins
+         * Allows to apply side effects usePath the query's {@link Root}. Main
+         * use case is to specify eager joins
          *
          * @param rootEnhancer
          * @return

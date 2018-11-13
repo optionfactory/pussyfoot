@@ -1,6 +1,8 @@
 package net.optionfactory.pussyfoot.hibernate;
 
+import javax.persistence.Tuple;
 import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
@@ -23,6 +25,6 @@ public interface CustomPredicateBuilder<TRoot, TFilterValue> {
      * @param filterValue filter raw value
      * @return the JPA's {@link Predicate} to apply
      */
-    Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue);
+    Predicate predicateFor(final CriteriaQuery<Tuple> query, CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue);
 
 }

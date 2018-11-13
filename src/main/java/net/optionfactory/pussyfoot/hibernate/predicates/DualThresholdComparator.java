@@ -5,6 +5,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import net.emaze.dysfunctional.tuples.Pair;
+import net.optionfactory.pussyfoot.extjs.Comparison;
 import static net.optionfactory.pussyfoot.extjs.Operator.eq;
 import static net.optionfactory.pussyfoot.extjs.Operator.gt;
 import static net.optionfactory.pussyfoot.extjs.Operator.gte;
@@ -12,7 +13,7 @@ import static net.optionfactory.pussyfoot.extjs.Operator.lt;
 import static net.optionfactory.pussyfoot.extjs.Operator.lte;
 import net.optionfactory.pussyfoot.hibernate.SimplePredicateBuilder;
 
-public class DualThresholdComparator<TCol extends Comparable<? super TCol>, TFilterValue extends Comparable<? super TFilterValue>> implements SimplePredicateBuilder<TCol, net.optionfactory.pussyfoot.extjs.Comparison<TFilterValue>> {
+public class DualThresholdComparator<TCol extends Comparable<? super TCol>, TFilterValue extends Comparable<? super TFilterValue>> implements SimplePredicateBuilder<TCol, Comparison<TFilterValue>> {
 
     private final Function<TFilterValue, Pair<TCol, TCol>> valueToThresholds;
 
@@ -21,7 +22,7 @@ public class DualThresholdComparator<TCol extends Comparable<? super TCol>, TFil
     }
 
     @Override
-    public Predicate predicateFor(CriteriaBuilder cb, Expression<TCol> path, net.optionfactory.pussyfoot.extjs.Comparison<TFilterValue> filterValue) {
+    public Predicate predicateFor(CriteriaBuilder cb, Expression<TCol> path, Comparison<TFilterValue> filterValue) {
         final Pair<TCol, TCol> thresholds = valueToThresholds.apply(filterValue.value);
         final TCol lowerThreshold = thresholds.first();
         final TCol upperThreshold = thresholds.second();

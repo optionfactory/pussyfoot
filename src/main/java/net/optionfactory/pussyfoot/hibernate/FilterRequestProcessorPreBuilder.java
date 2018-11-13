@@ -4,7 +4,7 @@ import java.util.function.Function;
 import net.emaze.dysfunctional.tuples.Pair;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 
-public class FilterRequestProcessorPreBuilder<TRoot, TFilterRawValue extends Object, TFilterValue> {
+public class FilterRequestProcessorPreBuilder<TRoot, TFilterRawValue, TFilterValue> {
 
     private final Builder<TRoot> builder;
     private final Pair<String, Class<? extends Object>> filterKey;
