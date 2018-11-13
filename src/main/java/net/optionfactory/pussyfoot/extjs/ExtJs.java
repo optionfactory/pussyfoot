@@ -43,12 +43,12 @@ public class ExtJs {
      * @param <T> The type of the value to filter against
      * @param mapper jacksons' {@link ObjectMapper} instance to be used for
      * deserialization
-     * @return a {@link Comparator} instance
+     * @return a {@link Comparison} instance
      */
-    public static <T> Function<String, Comparator<T>> comparator(ObjectMapper mapper) {
+    public static <T extends Comparable<? super T>> Function<String, Comparison<T>> comparator(ObjectMapper mapper) {
         return (String v) -> {
             try {
-                return (Comparator<T>) mapper.readValue(v, new TypeReference<Comparator<T>>() {
+                return (Comparison<T>) mapper.readValue(v, new TypeReference<Comparison<T>>() {
                 });
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
@@ -63,14 +63,14 @@ public class ExtJs {
      * @param <T> The type of the value to filter against
      * @param mapper jacksons' {@link ObjectMapper} instance to be used for
      * deserialization
-     * @return a {@link Comparator} instance
+     * @return a {@link Comparison} instance
      */
-    public static Function<String, Comparator<ZonedDateTime>> utcDate(ObjectMapper mapper) {
+    public static Function<String, Comparison<ZonedDateTime>> utcDate(ObjectMapper mapper) {
         return (String v) -> {
             try {
                 final UTCDate utcDateFilter = (UTCDate) mapper.readValue(v, new TypeReference<UTCDate>() {
                 });
-                return Comparator.<ZonedDateTime>of(utcDateFilter.operator, utcDateFilter.value.atZone(ZoneId.of("UTC")));
+                return Comparison.<ZonedDateTime>of(utcDateFilter.operator, utcDateFilter.value.atZone(ZoneId.of("UTC")));
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -84,14 +84,14 @@ public class ExtJs {
      * @param <T> The type of the value to filter against
      * @param mapper jacksons' {@link ObjectMapper} instance to be used for
      * deserialization
-     * @return a {@link Comparator} instance
+     * @return a {@link Comparison} instance
      */
-    public static Function<String, Comparator<ZonedDateTime>> utcDateWithTimeZone(ObjectMapper mapper) {
+    public static Function<String, Comparison<ZonedDateTime>> utcDateWithTimeZone(ObjectMapper mapper) {
         return (String v) -> {
             try {
                 final UTCDateWithTimeZone filter = (UTCDateWithTimeZone) mapper.readValue(v, new TypeReference<UTCDateWithTimeZone>() {
                 });
-                return Comparator.<ZonedDateTime>of(filter.operator, filter.value.atZone(filter.timeZone));
+                return Comparison.<ZonedDateTime>of(filter.operator, filter.value.atZone(filter.timeZone));
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -105,7 +105,7 @@ public class ExtJs {
      * @param <T> The type of the value to filter against
      * @param mapper jacksons' {@link ObjectMapper} instance to be used for
      * deserialization
-     * @return a {@link Comparator} instance
+     * @return a {@link Comparison} instance
      */
     public static <T extends Enum<T>> Function<String, EnumSet<T>> enumSetList(ObjectMapper mapper) {
         return (String v) -> {
@@ -125,7 +125,7 @@ public class ExtJs {
      * @param <T> The type of the value to filter against
      * @param mapper jacksons' {@link ObjectMapper} instance to be used for
      * deserialization
-     * @return a {@link Comparator} instance
+     * @return a {@link Comparison} instance
      */
     public static <T> Function<String, List<T>> valuesList(ObjectMapper mapper) {
         return (String v) -> {

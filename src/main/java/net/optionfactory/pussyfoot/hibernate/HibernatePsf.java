@@ -1,13 +1,6 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import net.optionfactory.pussyfoot.hibernate.builders.SorterBuilder;
-import net.optionfactory.pussyfoot.hibernate.builders.ComparatorFilterBuilder;
-import net.optionfactory.pussyfoot.hibernate.builders.EqualFilterBuilder;
-import net.optionfactory.pussyfoot.hibernate.builders.LikeFilterBuilder;
-import net.optionfactory.pussyfoot.hibernate.builders.DateInFilterBuilder;
-import net.optionfactory.pussyfoot.hibernate.builders.InFilterBuilder;
-import java.time.ZonedDateTime;
-import java.time.temporal.Temporal;
+import com.fasterxml.jackson.databind.util.ClassUtil;
 import net.optionfactory.pussyfoot.Psf;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.Tuple;
@@ -25,19 +17,14 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Order;
-import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
-import javax.persistence.metamodel.SingularAttribute;
 import net.emaze.dysfunctional.tuples.Pair;
-import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
 import net.optionfactory.pussyfoot.SliceRequest;
 import net.optionfactory.pussyfoot.SortRequest;
-import net.optionfactory.pussyfoot.extjs.Operator;
-import net.optionfactory.pussyfoot.extjs.Comparator;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.query.Query;
@@ -76,7 +63,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     }
 
     private <T> Predicate predicateForNameAndValue(String name, T value, CriteriaBuilder cb, Root<TRoot> r) {
-        final PredicateBuilder<TRoot, T> filter = (PredicateBuilder<TRoot, T>) availableFilters.get(name);
+        final Pair<String, Class<? extends Object>> filterKey = Pair.of(name, value.getClass());
+        final CustomPredicateBuilder<TRoot, T> filter = (CustomPredicateBuilder<TRoot, T>) availableFilters.get(filterKey);
         return filter.predicateFor(cb, r, value);
     }
 
@@ -93,13 +81,13 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
-            final List<Predicate> predicates = Stream.of(request.filters)
-                    .filter(filterRequest -> {
-                        final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
-                        return availableFilters.containsKey(key);
-                    }).map(filterRequest -> {
-                return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
-            }).collect(Collectors.toList());
+        final List<Predicate> predicates = Stream.of(request.filters)
+                .filter(filterRequest -> {
+                    final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
+                    return availableFilters.containsKey(key);
+                }).map(filterRequest -> {
+            return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
+        }).collect(Collectors.toList());
         ccq.where(cb.and(predicates.toArray(new Predicate[0])));
         final Query<Tuple> countQuery = session.createQuery(ccq);
         final Tuple countResult = countQuery.getSingleResult();
@@ -149,7 +137,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public static class Builder<TRoot> {
 
         private boolean useCountDistinct = false;
-    private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
@@ -174,7 +162,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @return a {@link SorterBuilder}, to specify against the columns to
          * use to sort
          */
-        public SorterBuilder<TRoot> withSorter(String sorterName) {
+        public SorterBuilder<TRoot> onSortRequest(String sorterName) {
             return new SorterBuilder<>(this, sorterName);
         }
 
@@ -209,7 +197,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         /**
-         * Allows to apply side effects on the query's {@link Root}. Main use
+         * Allows to apply side effects onPath the query's {@link Root}. Main use
          * case is to specify eager joins
          *
          * @param rootEnhancer

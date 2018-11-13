@@ -9,7 +9,7 @@ import java.util.function.Function;
  *
  * @param <T> The type of the value to compare against
  */
-public class Comparator<T> {
+public class Comparison<T extends Comparable<? super T>> {
 
     /**
      * The {@link Operator} that defines the actual comparison to be performed
@@ -22,22 +22,22 @@ public class Comparator<T> {
     public T value;
 
     /**
-     * Static constructor for {@link Comparator}
+     * Static constructor for {@link Comparison}
      *
      * @param <T> The type of the value to compare against
      * @param operator The {@link Operator} that defines the actual comparison
      * to be performed
      * @param value The value to compare against
-     * @return a new instance of {@link Comparator}
+     * @return a new instance of {@link Comparison}
      */
-    public static <T> Comparator<T> of(Operator operator, T value) {
-        final Comparator res = new Comparator();
+    public static <T extends Comparable<? super T>> Comparison<T> of(Operator operator, T value) {
+        final Comparison res = new Comparison();
         res.operator = operator;
         res.value = value;
         return res;
     }
 
-    public <R> Comparator<R> map(Function<T, R> valueMapper) {
-        return Comparator.of(this.operator, valueMapper.apply(this.value));
+    public <R extends Comparable<? super R>> Comparison<R> map(Function<T, R> valueMapper) {
+        return Comparison.of(this.operator, valueMapper.apply(this.value));
     }
 }

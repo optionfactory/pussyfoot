@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate;
+package net.optionfactory.pussyfoot.hibernate.predicates;
 
 import java.math.BigDecimal;
 import java.util.Optional;

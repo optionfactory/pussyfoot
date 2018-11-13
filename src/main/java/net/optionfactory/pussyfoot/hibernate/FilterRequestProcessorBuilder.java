@@ -14,14 +14,14 @@ import javax.persistence.metamodel.SingularAttribute;
 import net.emaze.dysfunctional.tuples.Pair;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 
-public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue, TCol> {
+public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilterValue> {
 
     private final Builder<TRoot> builder;
     private final Pair<String, Class<?>> filterKey;
     private final Function<TFilterRawValue, TFilterValue> filterValueAdapter;
-    private final SinglePathPredicateBuilder<TFilterValue, TCol> function;
+    private final SimplePredicateBuilder<TCol, TFilterValue> function;
 
-    public FilterRequestProcessorBuilder(Builder<TRoot> builder, Pair<String, Class<?>> filterKey, Function<TFilterRawValue, TFilterValue> filterValueAdapter, SinglePathPredicateBuilder<TFilterValue, TCol> function) {
+    public FilterRequestProcessorBuilder(Builder<TRoot> builder, Pair<String, Class<?>> filterKey, Function<TFilterRawValue, TFilterValue> filterValueAdapter, SimplePredicateBuilder<TCol, TFilterValue> function) {
         this.builder = builder;
         this.filterKey = filterKey;
         this.filterValueAdapter = filterValueAdapter;
@@ -32,10 +32,10 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue,
         this.builder.withFilterRequestProcessor(new FilterRequestProcessor<>(
                 filterKey,
                 filterValueAdapter,
-                new PredicateBuilder<TRoot, TFilterValue>() {
+                new CustomPredicateBuilder<TRoot, TFilterValue>() {
             @Override
             public Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue) {
-                return function.predicateFor(criteriaBuilder, filterValue, pathResolver.apply(criteriaBuilder, root));
+                return function.predicateFor(criteriaBuilder, pathResolver.apply(criteriaBuilder, root), filterValue);
             }
         }));
         return builder;
@@ -52,13 +52,15 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue,
         this.builder.withFilterRequestProcessor(new FilterRequestProcessor<>(
                 filterKey,
                 filterValueAdapter,
-                new PredicateBuilder<TRoot, TFilterValue>() {
+                new CustomPredicateBuilder<TRoot, TFilterValue>() {
             @Override
             public Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue) {
                 final List<Expression<TCol>> paths = pathsResolver.apply(criteriaBuilder, root);
                 return paths
                         .stream()
-                        .map(path -> function.predicateFor(criteriaBuilder, filterValue, path))
+                        .map(path -> {
+                            return function.predicateFor(criteriaBuilder, path, filterValue);
+                        })
                         .collect(Collectors.reducing(criteriaBuilder.disjunction(), (p1, p2) -> criteriaBuilder.or(p1, p2)));
             }
         }));
@@ -86,7 +88,7 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue,
         return onNullablePath((cb, r) -> r.get(column), defaultIfNull);
     }
 
-    public Builder<TRoot> onEitherColumnName(List<SingularAttribute<TRoot, TCol>> columns) {
+    public Builder<TRoot> onEitherColumn(List<SingularAttribute<TRoot, TCol>> columns) {
         return onEitherPath((CriteriaBuilder cb, Root<TRoot> r) -> columns.stream().map((p) -> r.get(p)).collect(Collectors.toList()));
     }
 
@@ -122,7 +124,7 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue,
                         }));
     }
 
-    public Builder<TRoot> onEitherByColumn(List<String> columnNames) {
+    public Builder<TRoot> onEitherColumnName(List<String> columnNames) {
         return onEitherPath((cb, r) -> columnNames
                 .stream()
                 .map((cn) -> r.<TCol>get(cn))

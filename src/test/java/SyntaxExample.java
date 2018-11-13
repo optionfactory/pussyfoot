@@ -1,4 +1,6 @@
 
+import net.optionfactory.pussyfoot.hibernate.predicates.Equal;
+import net.optionfactory.pussyfoot.hibernate.predicates.Comparator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.optionfactory.pussyfoot.Psf;
 import net.optionfactory.pussyfoot.extjs.ExtJs;
@@ -15,13 +17,13 @@ public class SyntaxExample {
         ObjectMapper mapper = null;
         Psf<User> psf = new Builder<User>()
                 .onFilterRequest("exactId", Integer.class)
-                /**/.applyFilter(new EqualPredicateBuilder<>())
+                /**/.applyPredicate(new Equal<>())
                 /**/.onColumn("id")
                 .onFilterRequest("id", String.class)
                 /**/.mappedTo(ExtJs.<Integer>comparator(mapper))
-                /**/.applyFilter(new ComparatorPredicateBuilder<>())
+                /**/.applyPredicate(new Comparator<>())
                 /**/.onColumn("id")
-                //                    .onFilterRequest("search", String.class).applyFilter()
+                //                    .onFilterRequest("search", String.class).applyPredicate()
                 .build(User.class, hibernate);
 
     }

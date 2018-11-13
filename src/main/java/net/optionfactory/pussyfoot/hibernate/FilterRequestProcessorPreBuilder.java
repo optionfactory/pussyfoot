@@ -22,11 +22,11 @@ public class FilterRequestProcessorPreBuilder<TRoot, TFilterRawValue extends Obj
         this.filterValueAdapter = filterValueAdapter;
     }
 
-    public Builder<TRoot> applyCustomFilter(PredicateBuilder<TRoot, TFilterValue> function) {
+    public Builder<TRoot> applyCustomFilter(CustomPredicateBuilder<TRoot, TFilterValue> function) {
         return builder.withFilterRequestProcessor(new FilterRequestProcessor<>(filterKey, filterValueAdapter, function));
     }
 
-    public <TCol> FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TFilterValue, TCol> applyFilter(SinglePathPredicateBuilder<TFilterValue, TCol> function) {
+    public <TCol> FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilterValue> applyPredicate(SimplePredicateBuilder<TCol, TFilterValue> function) {
         return new FilterRequestProcessorBuilder<>(builder, filterKey, filterValueAdapter, function);
     }
 
