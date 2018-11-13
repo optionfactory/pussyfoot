@@ -20,7 +20,7 @@ public class SyntaxExample {
                 /**/.applyPredicate(new Equal<>())
                 /**/.onColumn("id")
                 .onFilterRequest("id", String.class)
-                /**/.mappedTo(ExtJs.<Integer>comparator(mapper))
+                /**/.mappedTo(ExtJs.comparator(Integer.class, mapper))
                 /**/.applyPredicate(new Comparator<>())
                 /**/.onColumn("id")
                 //                    .onFilterRequest("search", String.class).applyPredicate()

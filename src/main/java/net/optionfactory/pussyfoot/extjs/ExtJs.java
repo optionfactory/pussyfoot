@@ -45,11 +45,10 @@ public class ExtJs {
      * deserialization
      * @return a {@link Comparison} instance
      */
-    public static <T extends Comparable<? super T>> Function<String, Comparison<T>> comparator(ObjectMapper mapper) {
+    public static <T extends Comparable<? super T>> Function<String, Comparison<T>> comparator(Class<T> clazz, ObjectMapper mapper) {
         return (String v) -> {
             try {
-                return (Comparison<T>) mapper.readValue(v, new TypeReference<Comparison<T>>() {
-                });
+                return (Comparison<T>) mapper.readValue(v, mapper.getTypeFactory().constructParametricType(Comparison.class, clazz));
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -107,11 +106,10 @@ public class ExtJs {
      * deserialization
      * @return a {@link Comparison} instance
      */
-    public static <T extends Enum<T>> Function<String, EnumSet<T>> enumSetList(ObjectMapper mapper) {
+    public static <T extends Enum<T>> Function<String, EnumSet<T>> enumSetList(Class<T> clazz, ObjectMapper mapper) {
         return (String v) -> {
             try {
-                return (EnumSet<T>) mapper.readValue(v, new TypeReference<EnumSet<T>>() {
-                });
+                return (EnumSet<T>) mapper.readValue(v, mapper.getTypeFactory().constructCollectionLikeType(EnumSet.class, clazz));
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -127,11 +125,10 @@ public class ExtJs {
      * deserialization
      * @return a {@link Comparison} instance
      */
-    public static <T> Function<String, List<T>> valuesList(ObjectMapper mapper) {
+    public static <T> Function<String, List<T>> valuesList(Class<T> clazz, ObjectMapper mapper) {
         return (String v) -> {
             try {
-                return (List<T>) mapper.readValue(v, new TypeReference<List<T>>() {
-                });
+                return (List<T>) mapper.readValue(v, mapper.getTypeFactory().constructCollectionLikeType(List.class, clazz));
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
