@@ -11,6 +11,7 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.metamodel.SingularAttribute;
+import net.emaze.dysfunctional.tuples.Pair;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf;
@@ -43,7 +44,7 @@ public abstract class BaseFilterBuilder<TRoot, TRawValue, TValue, TCol> {
      * {@link FilterRequest}, after being adapted (e.g.: deserialized)
      * @param builder The external builder which is going to be modified (and
      * ultimately returned)
-     * @param filterName The name of the filter, once built
+     * @param filterProcessorKey The name of the filter, once built
      * @param filterValueAdapter The function that converts Raw values of type
      * TRawValue to values in the final form of type TValue, before being passed
      * to the inheriting filter builder implementation
@@ -81,11 +82,12 @@ public abstract class BaseFilterBuilder<TRoot, TRawValue, TValue, TCol> {
      * @return The main builder, in order to chain further filters/sorterers
      */
     public HibernatePsf.Builder<TRoot> on(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver) {
-        return builder.withFilter(this.filterName, (CriteriaBuilder cb, Root<TRoot> root, TRawValue filterRawValue) -> {
-            final Expression<TCol> path = pathResolver.apply(cb, root);
-            final TValue filterValue = filterValueAdapter.apply(filterRawValue);
-            return createPredicate(cb, path, filterValue);
-        });
+//        return builder.withFilter(this.filterProcessorKey, (CriteriaBuilder cb, Root<TRoot> root, TRawValue filterRawValue) -> {
+//            final Expression<TCol> path = pathResolver.apply(cb, root);
+//            final TValue filterValue = filterValueAdapter.apply(filterRawValue);
+//            return createPredicate(cb, path, filterValue);
+//        });
+        return builder;
     }
 
     /**
@@ -120,11 +122,12 @@ public abstract class BaseFilterBuilder<TRoot, TRawValue, TValue, TCol> {
      * @return The main builder, in order to chain further filters/sorterers
      */
     public HibernatePsf.Builder<TRoot> onEither(BiFunction<CriteriaBuilder, Root<TRoot>, List<Expression<TCol>>> pathsResolver) {
-        return this.builder.withFilter(this.filterName, (CriteriaBuilder cb, Root<TRoot> root, TRawValue filterRawValue) -> {
-            final List<Expression<TCol>> paths = pathsResolver.apply(cb, root);
-            final TValue filterValue = filterValueAdapter.apply(filterRawValue);
-            return paths.stream().map((path) -> createPredicate(cb, path, filterValue)).collect(Collectors.reducing(cb.disjunction(), (p1, p2) -> cb.or(p1, p2)));
-        });
+        return builder;
+//        return this.builder.withFilter(this.filterProcessorKey, (CriteriaBuilder cb, Root<TRoot> root, TRawValue filterRawValue) -> {
+//            final List<Expression<TCol>> paths = pathsResolver.apply(cb, root);
+//            final TValue filterValue = filterValueAdapter.apply(filterRawValue);
+//            return paths.stream().map((path) -> createPredicate(cb, path, filterValue)).collect(Collectors.reducing(cb.disjunction(), (p1, p2) -> cb.or(p1, p2)));
+//        });
     }
 
     /**
@@ -229,7 +232,8 @@ public abstract class BaseFilterBuilder<TRoot, TRawValue, TValue, TCol> {
      * @return The main builder, in order to chain further filters/sorterers
      */
     public HibernatePsf.Builder<TRoot> onColumnWithSameName() {
-        return on((cb, r) -> r.get(filterName));
+        return builder;
+//        return on((cb, r) -> r.get(filterProcessorKey));
     }
 
     /**
@@ -258,7 +262,8 @@ public abstract class BaseFilterBuilder<TRoot, TRawValue, TValue, TCol> {
      * @return The main builder, in order to chain further filters/sorterers
      */
     public HibernatePsf.Builder<TRoot> onNullableColumnWithSameName(TCol defaultIfNull) {
-        return onNullable((cb, r) -> r.get(filterName), defaultIfNull);
+        return builder;
+//        return onNullable((cb, r) -> r.get(filterProcessorKey), defaultIfNull);
     }
 
     /**

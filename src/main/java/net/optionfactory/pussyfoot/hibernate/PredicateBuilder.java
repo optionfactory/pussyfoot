@@ -9,10 +9,10 @@ import javax.persistence.criteria.Root;
  * definition
  *
  * @param <TRoot> the type of the query's {@link Root} object
- * @param <TRawVal> the type of the filter's raw value
+ * @param <TVal> the type of the filter's value
  */
 @FunctionalInterface
-public interface JpaFilter<TRoot, TRawVal> {
+public interface PredicateBuilder<TRoot, TVal> {
 
     /**
      * Given context (query's {@link CriteriaBuilder} and {@link Root}) and the
@@ -20,9 +20,9 @@ public interface JpaFilter<TRoot, TRawVal> {
      *
      * @param criteriaBuilder query's {@link CriteriaBuilder} 
      * @param root query's {@link Root}
-     * @param rawValue filter raw value
+     * @param filterValue filter raw value
      * @return the JPA's {@link Predicate} to apply
      */
-    Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TRawVal rawValue);
+    Predicate predicateFor(CriteriaBuilder criteriaBuilder, Root<TRoot> root, TVal filterValue);
 
 }

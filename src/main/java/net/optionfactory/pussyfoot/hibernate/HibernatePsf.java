@@ -30,6 +30,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 import javax.persistence.metamodel.SingularAttribute;
+import net.emaze.dysfunctional.tuples.Pair;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
@@ -52,7 +53,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     private final Class<TRoot> klass;
     private final boolean useCountDistinct;
     private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
-    private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
+    private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers;
 
@@ -61,7 +62,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             Class<TRoot> klass,
             boolean useCountDistinct,
             Optional<Consumer<Root<TRoot>>> rootEnhancer,
-            ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
+            ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
             ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers
     ) {
@@ -75,7 +76,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     }
 
     private <T> Predicate predicateForNameAndValue(String name, T value, CriteriaBuilder cb, Root<TRoot> r) {
-        final JpaFilter<TRoot, T> filter = (JpaFilter<TRoot, T>) availableFilters.get(name);
+        final PredicateBuilder<TRoot, T> filter = (PredicateBuilder<TRoot, T>) availableFilters.get(name);
         return filter.predicateFor(cb, r, value);
     }
 
@@ -92,11 +93,13 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
-        final List<Predicate> predicates = Stream.of(request.filters)
-                .filter(filterRequest -> availableFilters.containsKey(filterRequest.name))
-                .map(filterRequest -> {
-                    return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
-                }).collect(Collectors.toList());
+            final List<Predicate> predicates = Stream.of(request.filters)
+                    .filter(filterRequest -> {
+                        final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
+                        return availableFilters.containsKey(key);
+                    }).map(filterRequest -> {
+                return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
+            }).collect(Collectors.toList());
         ccq.where(cb.and(predicates.toArray(new Predicate[0])));
         final Query<Tuple> countQuery = session.createQuery(ccq);
         final Tuple countResult = countQuery.getSingleResult();
@@ -146,7 +149,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public static class Builder<TRoot> {
 
         private boolean useCountDistinct = false;
-        private final ConcurrentMap<String, JpaFilter<TRoot, ?>> filters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
@@ -191,357 +194,17 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             return this;
         }
 
-        /**
-         * Defines a potential filter function. The filtering will be applied
-         * only when a {@link FilterRequest} with a {@link FilterRequest#name}
-         * matching this filter's name is found within a {@link PageRequest}
-         *
-         * @param filterName The name of this filter
-         * @param filter The {@link JpaFilter} containing all the information
-         * necessary to apply the desired filter to the query
-         * @return builder itself, in order to chain further filters/sorterers
-         */
-        public <T> Builder<TRoot> withFilter(String filterName, JpaFilter<TRoot, T> filter) {
-            filters.put(filterName, filter);
+        public Builder<TRoot> withFilterRequestProcessor(FilterRequestProcessor<TRoot, ?, ?> processor) {
+            this.filters.put(processor.filterRequestKey, processor);
             return this;
         }
 
-        /**
-         * Defines an equality filter.
-         *
-         * <p>
-         * SQL equivalent when applied:<br/>
-         * ... where col = :value
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param <TCol> The type of the column this filter applies to, and of
-         * the value contained in the {@link PageRequest}'s
-         * {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         * @see EqualFilterBuilder
-         */
-        public <TCol> EqualFilterBuilder<TRoot, TCol, TCol> withFilterEqual(String filterName) {
-            return new EqualFilterBuilder<>(this, filterName, Function.identity());
-        }
-
-        /**
-         * Defines an equality filter.
-         *
-         * <p>
-         * SQL equivalent when applied:<br/>
-         * ... where col = :value:
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param <TRawVal> The type of the value contained in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param <TCol> The type of the column this filter applies to the value
-         * contained in the {@link PageRequest}'s {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param filterValueAdapter a function to adapt the filter value to the
-         * column value
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public <TRawVal, TCol> EqualFilterBuilder<TRoot, TRawVal, TCol> withFilterEqual(String filterName, Function<TRawVal, TCol> filterValueAdapter) {
-            return new EqualFilterBuilder<>(this, filterName, filterValueAdapter);
-        }
-
-        /**
-         * Defines an partial, case-insensitive match filter on string columns.
-         *
-         * <p>
-         * PSQL equivalent when applied:<br/>
-         * ... where col ilike %:value:%
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public LikeFilterBuilder<TRoot, String> withFilterLike(String filterName) {
-            return new LikeFilterBuilder<>(this, filterName, Function.identity());
-        }
-
-        /**
-         * Defines an partial, case-insensitive match filter on string columns.
-         *
-         * <p>
-         * PSQL equivalent when applied:<br/>
-         * ... where col ilike %:value:%
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param <TRawVal> The type of the value contained in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param filterValueAdapter a function to adapt the filter value to the
-         * column value
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public <TRawVal> LikeFilterBuilder<TRoot, TRawVal> withFilterLike(String filterName, Function<TRawVal, String> filterValueAdapter) {
-            return new LikeFilterBuilder<>(this, filterName, filterValueAdapter);
-        }
-
-        /**
-         * Defines an {@link Operator}-based filter against a comparable value
-         *
-         * <p>
-         * SQL equivalent when applied, depending on the
-         * {@link Comparator#operator}:<br/>
-         * ... where col OPERATOR :value:
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param <TRawVal> The type of the value contained in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param <TCol> The type of the column this filter applies to the value
-         * contained in the {@link PageRequest}'s {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public <TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, Comparator<TCol>, TCol> withFilterComparator(String filterName) {
-            return new ComparatorFilterBuilder<>(this, filterName, Function.identity());
-        }
-
-        /**
-         * A generalization of a
-         * {@link #withFilterComparator(java.lang.String)}, which performs an
-         * adaptation of the {@link FilterRequest#value} before applying the
-         * comparation function
-         *
-         * @param filterValueAdapter a function to adapt the raw filter value to
-         * final {@link Comparator}
-         */
-        public <TRawVal, TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, TRawVal, TCol> withFilterComparator(String filterName, Function<TRawVal, Comparator<TCol>> filterValueAdapter) {
-            return new ComparatorFilterBuilder<>(this, filterName, filterValueAdapter);
-        }
-
-        /**
-         * A generalization of a
-         * {@link #withFilterComparator(java.lang.String)}, which performs a
-         * two-step adaptation of the {@link FilterRequest#value} before
-         * applying the comparation function. The main use case is to have a
-         * first step of deserialization of an incoming
-         * {@link FilterRequest#value} of type {@link String}, and then adapting
-         * the deserialized {@link Comparator#value} to the column's value
-         *
-         * @param filterValueAdapter the first function to apply to adapt the
-         * raw filter value to final {@link Comparator}
-         * @param filterToColumnConverter the second function to apply (against
-         * the result of the first function above) to adapt the raw filter value
-         * to final {@link Comparator}
-         */
-        public <TRawVal, TComparatorValue, TCol extends Comparable<TCol>> ComparatorFilterBuilder<TRoot, TRawVal, TCol> withFilterComparator(String filterName, Function<TRawVal, Comparator<TComparatorValue>> filterValueAdapter, Function<TComparatorValue, TCol> filterToColumnConverter) {
-            return new ComparatorFilterBuilder<>(this, filterName, v -> filterValueAdapter.apply(v).map(filterToColumnConverter));
-        }
-
-        /**
-         * Defines a filter, similar to {@link #withFilterComparator}, that
-         * given a {@link ZonedDateTime}'s value extracts beginning and and of
-         * such day, and then applies a comparation function as follows:
-         *
-         * <p>
-         * Given START_OF_DAY and END_OF_DAY, SQL equivalent when applied:
-         * <ul>
-         * <li>{@link Operator#gt}: ... where col &gt; END_OF_DAY</li>
-         * <li>{@link Operator#gte}: ... where col &ge; START_OF_DAY</li>
-         * <li>{@link Operator#lt}: ... where col &lt; START_OF_DAY</li>
-         * <li>{@link Operator#lte}: ... where col &le; END_OF_DAY</li>
-         * <li>{@link Operator#eq}: ... where col &ge; START_OF_DAY and col &le;
-         * END_OF_DAY</li>
-         * </ul>
-         * </p>
-         * <p>
-         * This filter is applied when a {@link PageRequest} containing a
-         * {@link FilterRequest} with the field {@link FilterRequest#name}
-         * matching the name of this filter is applied.
-         * </p>
-         *
-         * @param <TRawVal> The type of the value contained in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param <TCol> The type of the column this filter applies to the value
-         * contained in the {@link PageRequest}'s {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param filterValueAdapter a function to adapt the raw filter value to
-         * final {@link Comparator}
-         * @param filterToColumnConverter the second function to apply (against
-         * the result of the first function above) to adapt the raw filter value
-         * to final {@link Comparator}
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public <TRawVal, TCol extends Temporal & Comparable<TCol>> DateInFilterBuilder<TRoot, TRawVal, TCol> withFilterDateIn(String filterName, Function<TRawVal, Comparator<ZonedDateTime>> filterValueAdapter, Function<ZonedDateTime, TCol> filterToColumnConverter) {
-            return new DateInFilterBuilder<>(this, filterName, filterValueAdapter, filterToColumnConverter);
-        }
-
-        /**
-         * Same as
-         * {@link #withFilterDateIn(java.lang.String, java.util.function.Function, java.util.function.Function)},
-         * but assuming the filter value is already of type
-         * {@link ZonedDateTime}
-         *
-         *
-         * @param <TCol> The type of the column this filter applies to the value
-         * contained in the {@link PageRequest}'s {@link FilterRequest}
-         * @param filterName the name of the filter to be referenced in the
-         * {@link PageRequest}'s {@link FilterRequest}
-         * @param filterToColumnConverter the second function to apply (against
-         * the result of the first function above) to adapt the
-         * {@link ZonedDateTime} filter value to the column's value
-         * @return a filter builder, to be used to specify the column(s) to
-         * filter on
-         */
-        public <TRawVal, TCol extends Temporal & Comparable<TCol>> DateInFilterBuilder<TRoot, Comparator<ZonedDateTime>, TCol> withFilterDateIn(String filterName, Function<ZonedDateTime, TCol> filterToColumnConverter) {
-            return new DateInFilterBuilder<>(this, filterName, Function.identity(), filterToColumnConverter);
-        }
-
-        /**
-         * Defines an filter that matches a (calculated) column's value against
-         * a list of possible values
-         *
-         * <p>
-         * SQL equivalent when applied:<br/>
-         *
-         * ... where col IN (:val1:,:val2:, ... )
-         * </p>
-         *
-         * @param <TCol> The type of the column this filter will apply to
-         */
-        public <TCol extends Comparable<TCol>> InFilterBuilder<TRoot, List<TCol>, TCol> withFilterIn(String filterName) {
-            return new InFilterBuilder<>(this, filterName, Function.identity());
-        }
-
-        public <TRawVal, TCol extends Comparable<TCol>> InFilterBuilder<TRoot, TRawVal, TCol> withFilterIn(String filterName, Function<TRawVal, List<TCol>> filterValueAdapter) {
-            return new InFilterBuilder<>(this, filterName, filterValueAdapter);
-        }
-
-        /**
-         * @deprecated replaced by {@link #withFilter(java.lang.String, net.optionfactory.pussyfoot.hibernate.JpaFilter)
-         * }
-         */
-        public <T> Builder<TRoot> addFilter(String filterName, JpaFilter<TRoot, T> filter) {
-            filters.put(filterName, filter);
-            return this;
-        }
-
-        /**
-         * @deprecated replaced by {@link #withFilterEqual}
-         */
-        public <T> Builder<TRoot> addFilterEquals(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path) {
-            return withFilter(filterName, (cb, root, value) -> cb.equal(path.apply(cb, root), value));
-        }
-
-        /**
-         * @deprecated replaced by {@link #withFilterEqual}
-         */
-        public <T, X> Builder<TRoot> addFilterEquals(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<T>> path, Function<X, T> valueAdapter) {
-            return withFilter(filterName, (CriteriaBuilder cb, Root<TRoot> root, X value) -> cb.equal(path.apply(cb, root), valueAdapter.apply(value)));
-        }
-
-        /**
-         * @deprecated replaced by {@link #withFilterEqual}
-         */
-        public <T> Builder<TRoot> addFilterEquals(String filterName) {
-            return withFilter(filterName, (cb, root, value) -> cb.equal(root.get(filterName), value));
-        }
-
-        /**
-         * @deprecated replaced by {@link #withFilterLike(java.lang.String) }
-         */
-        public Builder<TRoot> addFilterLike(String filterName, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<String>> path) {
-            return withFilter(filterName, (CriteriaBuilder cb, Root<TRoot> root, String value) -> {
-                return StringPredicates.like(cb, path.apply(cb, root), value);
-            });
-        }
-
-        /**
-         * @deprecated replaced by {@link #withSorter }
-         */
-        public Builder<TRoot> addSorter(String name, BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorter) {
-            if (!sorters.containsKey(name)) {
-                sorters.put(name, new ArrayList<>());
-            }
-            sorters.get(name).add(sorter);
-            return this;
-        }
-
-        /**
-         * @deprecated replaced by {@link #withSorter }
-         */
-        public Builder<TRoot> addSorter(String name, Function<Root<TRoot>, Path<?>> path) {
-            return addSorter(name, (cb, root) -> {
-                final SorterContext orderingContext = new SorterContext();
-                orderingContext.sortExpression = path.apply(root);
-                return orderingContext;
-            });
-        }
-
-        /**
-         * @deprecated replaced by {@link #withSorter }
-         */
-        public <T> Builder<TRoot> addSorter(String name, SingularAttribute<TRoot, T> column) {
-            return addSorter(name, (cb, root) -> {
-                final SorterContext orderingContext = new SorterContext();
-                orderingContext.sortExpression = root.get(column);
-                return orderingContext;
-            });
-        }
-
-        /**
-         * @deprecated replaced by {@link #withSorter }
-         */
-        public Builder<TRoot> addSorter(String name) {
-            return addSorter(name, (cb, root) -> {
-                final SorterContext orderingContext = new SorterContext();
-                orderingContext.sortExpression = root.get(name);
-                return orderingContext;
-            });
+        public <TFilterRawValue> FilterRequestProcessorPreBuilder<TRoot, TFilterRawValue, TFilterRawValue> onFilterRequest(String filterName, Class<TFilterRawValue> filterValueClass) {
+            return new FilterRequestProcessorPreBuilder<>(this, Pair.of(filterName, filterValueClass));
         }
 
         public Builder<TRoot> withReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
             reducers.put(name, reduction);
-            return this;
-        }
-
-        /**
-         * @deprecated replaced by {@link #withRootEnhancer}
-         */
-        @Deprecated
-        public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
-            this.rootEnhancer = Optional.of(rootEnhancer);
             return this;
         }
 
