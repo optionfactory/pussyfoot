@@ -57,7 +57,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     private final boolean useCountDistinct;
     private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
     private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> availableFilters;
-    private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
+    private final ConcurrentMap<String, List<ExpressionResolver<TRoot, ?>>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers;
 
     public HibernatePsf(
@@ -67,7 +67,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             boolean useCountDistinct,
             Optional<Consumer<Root<TRoot>>> rootEnhancer,
             ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> availableFilters,
-            ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
+            ConcurrentMap<String, List<ExpressionResolver<TRoot, ?>>> availableSorters,
             ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers
     ) {
         this.hibernate = hibernate;
@@ -128,11 +128,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         orderers.addAll(Stream.of(request.sorters)
                 .filter(s -> availableSorters.containsKey(s.name))
                 .flatMap(s -> {
-                    return availableSorters.get(s.name).stream().map(cnsmr -> {
-                        final SorterContext r = cnsmr.apply(cb, sliceRoot);
-//                        r.additionalSelection.ifPresent(sel -> selectors.add(sel));
-//                        r.groupers.ifPresent(g -> scq.groupBy(g));
-                        return s.direction == SortRequest.Direction.ASC ? cb.asc(r.sortExpression) : cb.desc(r.sortExpression);
+                    return availableSorters.get(s.name).stream().map(sorterExpressionResolver -> {
+                        final Expression<?> sortExpression = sorterExpressionResolver.resolve(scq, cb, sliceRoot);
+                        return s.direction == SortRequest.Direction.ASC ? cb.asc(sortExpression) : cb.desc(sortExpression);
                     });
                 }).collect(Collectors.toList())
         );
@@ -209,10 +207,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             final List<Triple<Expression, SortRequest.Direction, Object>> columnDirectionAndValue = Stream.of(request.sorters)
                     .filter(s -> availableSorters.containsKey(s.name))
                     .flatMap(s -> {
-                        return availableSorters.get(s.name).stream().map(cnsmr -> {
+                        return availableSorters.get(s.name).stream().map(sortExpressionResolver -> {
                             dbc.state(tokenIndex.get() < token.columnValues.size() - 1, "Invalid token index");
-                            final SorterContext r = cnsmr.apply(cb, sliceRoot);
-                            Expression expr = r.sortExpression;
+                            final Expression expr = sortExpressionResolver.resolve(scq, cb, sliceRoot);
                             Object val = token.columnValues.get(tokenIndex.getAndIncrement());
                             return Triple.of(expr, s.direction, val);
                         });
@@ -227,15 +224,13 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         orderers.addAll(Stream.of(request.sorters)
                 .filter(s -> availableSorters.containsKey(s.name))
                 .flatMap(s -> {
-                    return availableSorters.get(s.name).stream().map(cnsmr -> {
-                        final SorterContext r = cnsmr.apply(cb, sliceRoot);
-//                        r.additionalSelection.ifPresent(sel -> selectors.add(sel));
-//                        r.groupers.ifPresent(g -> scq.groupBy(g));
-                        selectors.add(r.sortExpression);
+                    return availableSorters.get(s.name).stream().map(sortExpressionResolver -> {
+                        final Expression<?> sortExpression = sortExpressionResolver.resolve(scq, cb, sliceRoot);
+                        selectors.add(sortExpression);
 
                         return determineEffectiveDirection(s.direction, pageToken.map(pt -> pt.direction)) == SortRequest.Direction.ASC
-                                ? cb.asc(r.sortExpression)
-                                : cb.desc(r.sortExpression);
+                                ? cb.asc(sortExpression)
+                                : cb.desc(sortExpression);
                     });
                 }).collect(Collectors.toList())
         );
@@ -366,7 +361,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         private boolean useCountDistinct = false;
         private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
-        private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<String, List<ExpressionResolver<TRoot, ?>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
 
@@ -404,9 +399,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * the information necessary to apply the desired sorting to the query
          * @return builder itself, in order to chain further filters/sorterers
          */
-        public Builder<TRoot> withSorter(String sorterName, BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorterContextBuilder) {
+        public Builder<TRoot> withSorter(String sorterName, ExpressionResolver<TRoot, ?> sorterExpressionResolver) {
             this.sorters.putIfAbsent(sorterName, new ArrayList<>());
-            this.sorters.get(sorterName).add(sorterContextBuilder);
+            this.sorters.get(sorterName).add(sorterExpressionResolver);
             return this;
         }
 
