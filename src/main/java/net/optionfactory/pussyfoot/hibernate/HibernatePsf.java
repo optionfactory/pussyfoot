@@ -178,7 +178,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     }
 
     @Override
-    public AbsolutePageResponse<TRoot> queryForAbsolutePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException {
+    public AbsolutePageResponse<TRoot> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException {
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
@@ -385,7 +385,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @return a {@link SorterBuilder}, to specify against the columns to
          * use to sort
          */
-        public SorterBuilder<TRoot, ?> onSortRequest(String sorterName) {
+        public SorterBuilder<TRoot> onSortRequest(String sorterName) {
             return new SorterBuilder<>(this, sorterName);
         }
 

@@ -23,6 +23,6 @@ public interface Psf<T> {
 
     PageResponse<T> queryForPageInfiniteScrolling(PageRequest request);
 
-    AbsolutePageResponse<T> queryForAbsolutePage(AbsolutePageRequest request,ObjectMapper mapper) throws JsonProcessingException;
+    AbsolutePageResponse<T> queryForRelativePage(AbsolutePageRequest request,ObjectMapper mapper) throws JsonProcessingException;
 
 }

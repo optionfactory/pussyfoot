@@ -5,7 +5,7 @@ import java.util.Optional;
 /**
  * Defines the size and position of the slice of records to return
  */
-public class AbsoluteSliceRequest {
+public class RelativeSliceRequest {
 
     /**
      * Placeholder for slice limit special value
@@ -29,7 +29,7 @@ public class AbsoluteSliceRequest {
      * @param start how many records to skip
      * @param limit how many records to take
      */
-    public AbsoluteSliceRequest(Optional<String> reference, int limit) {
+    public RelativeSliceRequest(Optional<String> reference, int limit) {
         this.reference = reference;
         this.limit = limit;
     }
@@ -42,8 +42,8 @@ public class AbsoluteSliceRequest {
      * @param limit how many records to take
      * @return a new instance of {@link SliceRequest}
      */
-    public static AbsoluteSliceRequest of(Optional<String> reference, int limit) {
-        return new AbsoluteSliceRequest(reference, limit);
+    public static RelativeSliceRequest of(Optional<String> reference, int limit) {
+        return new RelativeSliceRequest(reference, limit);
     }
 
     /**
@@ -53,8 +53,8 @@ public class AbsoluteSliceRequest {
      *
      * @return a new instance of {@link SliceRequest}
      */
-    public static AbsoluteSliceRequest unbound() {
-        return new AbsoluteSliceRequest(Optional.empty(), UNLIMITED);
+    public static RelativeSliceRequest unbound() {
+        return new RelativeSliceRequest(Optional.empty(), UNLIMITED);
     }
 
     @Override

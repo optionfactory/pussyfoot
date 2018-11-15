@@ -24,7 +24,7 @@ public class AbsolutePageRequest {
      * Defines the slice of data (in terms of page start and page size) to
      * return
      */
-    public final AbsoluteSliceRequest slice;
+    public final RelativeSliceRequest slice;
     /**
      * Defines the sorters to be applied before paging the records
      */
@@ -41,7 +41,7 @@ public class AbsolutePageRequest {
      * @param sorters the sorters to be applied before paging the records
      * @param filters the filters to be applied before paging the records
      */
-    public AbsolutePageRequest(AbsoluteSliceRequest slice, SortRequest[] sorters, FilterRequest<?>[] filters) {
+    public AbsolutePageRequest(RelativeSliceRequest slice, SortRequest[] sorters, FilterRequest<?>[] filters) {
         this.slice = slice;
         this.sorters = sorters;
         this.filters = filters;
@@ -86,7 +86,7 @@ public class AbsolutePageRequest {
          * from scratch
          */
         public Builder() {
-            building = new AbsolutePageRequest(AbsoluteSliceRequest.unbound(), AbsolutePageRequest.NO_SORTERS, AbsolutePageRequest.NO_FILTERS);
+            building = new AbsolutePageRequest(RelativeSliceRequest.unbound(), AbsolutePageRequest.NO_SORTERS, AbsolutePageRequest.NO_FILTERS);
         }
 
         /**
@@ -104,7 +104,7 @@ public class AbsolutePageRequest {
          * @param slice the new {@link SliceRequest} value to use
          * @return the {@link Builders} itself, for further chaining
          */
-        public Builder withSlice(AbsoluteSliceRequest slice) {
+        public Builder withSlice(RelativeSliceRequest slice) {
             building = new AbsolutePageRequest(slice, building.sorters, building.filters);
             return this;
         }
