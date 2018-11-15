@@ -19,22 +19,22 @@ import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilterValue> {
 
     private final Builder<TRoot> builder;
-    private final Pair<String, Class<?>> filterKey;
+    private final Pair<String, Class<TFilterRawValue>> filterKey;
     private final Function<TFilterRawValue, TFilterValue> filterValueAdapter;
-    private final SimplePredicateBuilder<TCol, TFilterValue> function;
+    private final SimpleExecutor<TCol, TFilterValue> function;
 
     public FilterRequestProcessorBuilder(
             Builder<TRoot> builder,
-            Pair<String, Class<?>> filterKey,
+            Pair<String, Class<TFilterRawValue>> filterKey,
             Function<TFilterRawValue, TFilterValue> filterValueAdapter,
-            SimplePredicateBuilder<TCol, TFilterValue> function) {
+            SimpleExecutor<TCol, TFilterValue> function) {
         this.builder = builder;
         this.filterKey = filterKey;
         this.filterValueAdapter = filterValueAdapter;
         this.function = function;
     }
 
-    public Builder<TRoot> onPath(ExpressionResolver<TRoot, TCol> pathResolver) {
+    public Builder<TRoot> onExpression(ExpressionResolver<TRoot, TCol> pathResolver) {
         this.builder.withFilterRequestProcessor(new FilterRequestProcessor<>(
                 filterKey,
                 filterValueAdapter,
@@ -44,34 +44,18 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilter
         return builder;
     }
 
-    public Builder<TRoot> onNullablePath(ExpressionResolver<TRoot, TCol> pathResolver, TCol defaultIfNull) {
-        return onPath((query, cb, root) -> {
+    public Builder<TRoot> onNullableExpression(ExpressionResolver<TRoot, TCol> pathResolver, TCol defaultIfNull) {
+        return onExpression((query, cb, root) -> {
             final Expression<TCol> path = pathResolver.resolve(query, cb, root);
             return cb.coalesce(path, defaultIfNull);
         });
     }
 
-    public Builder<TRoot> onPath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver) {
-        return onPath((query, cb, r) -> pathResolver.apply(cb, r));
-    }
-
-    public Builder<TRoot> onNullablePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
-        return onNullablePath((query, cb, r) -> pathResolver.apply(cb, r), defaultIfNull);
-    }
-
-    public Builder<TRoot> onPath(Function<Root<TRoot>, Expression<TCol>> pathResolver) {
-        return onPath((cb, r) -> pathResolver.apply(r));
-    }
-
-    public Builder<TRoot> onNullablePath(Function<Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
-        return onNullablePath((cb, r) -> pathResolver.apply(r), defaultIfNull);
-    }
-
-    public Builder<TRoot> onEitherPath(List<ExpressionResolver<TRoot, TCol>> pathResolvers) {
+    public Builder<TRoot> onEitherExpression(List<ExpressionResolver<TRoot, TCol>> pathResolvers) {
         this.builder.withFilterRequestProcessor(new FilterRequestProcessor<>(
                 filterKey,
                 filterValueAdapter,
-                new CustomPredicateBuilder<TRoot, TFilterValue>() {
+                new FilterExecutor<TRoot, TFilterValue>() {
             @Override
             public Predicate predicateFor(final CriteriaQuery<Tuple> query, CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue) {
                 return pathResolvers.stream()
@@ -85,23 +69,35 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilter
         return builder;
     }
 
+    public Builder<TRoot> onPath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver) {
+        return onExpression((query, cb, r) -> pathResolver.apply(cb, r));
+    }
+
+    public Builder<TRoot> onNullablePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
+        return onNullableExpression((query, cb, r) -> pathResolver.apply(cb, r), defaultIfNull);
+    }
+
     public Builder<TRoot> onEitherPath(BiFunction<CriteriaBuilder, Root<TRoot>, List<Expression<TCol>>> pathsResolver) {
         this.builder.withFilterRequestProcessor(new FilterRequestProcessor<>(
                 filterKey,
-                filterValueAdapter,
-                new CustomPredicateBuilder<TRoot, TFilterValue>() {
-            @Override
-            public Predicate predicateFor(CriteriaQuery<Tuple> query, CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue) {
-                final List<Expression<TCol>> paths = pathsResolver.apply(criteriaBuilder, root);
-                return paths
-                        .stream()
-                        .map(path -> {
-                            return function.predicateFor(criteriaBuilder, path, filterValue);
-                        })
-                        .collect(Collectors.reducing(criteriaBuilder.disjunction(), (p1, p2) -> criteriaBuilder.or(p1, p2)));
-            }
-        }));
+                filterValueAdapter, (CriteriaQuery<Tuple> query, CriteriaBuilder criteriaBuilder, Root<TRoot> root, TFilterValue filterValue) -> {
+                    final List<Expression<TCol>> paths = pathsResolver.apply(criteriaBuilder, root);
+                    return paths
+                            .stream()
+                            .map(path -> {
+                                return function.predicateFor(criteriaBuilder, path, filterValue);
+                            })
+                            .collect(Collectors.reducing(criteriaBuilder.disjunction(), (p1, p2) -> criteriaBuilder.or(p1, p2)));
+                }));
         return builder;
+    }
+
+    public Builder<TRoot> onPath(Function<Root<TRoot>, Expression<TCol>> pathResolver) {
+        return onPath((cb, r) -> pathResolver.apply(r));
+    }
+
+    public Builder<TRoot> onNullablePath(Function<Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
+        return onNullablePath((cb, r) -> pathResolver.apply(r), defaultIfNull);
     }
 
     public Builder<TRoot> onEitherPath(Function<Root<TRoot>, List<Expression<TCol>>> pathsResolver) {
@@ -109,11 +105,11 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilter
     }
 
     public Builder<TRoot> onColumn(SingularAttribute<TRoot, TCol> column) {
-        return onPath((query, cb, r) -> r.get(column));
+        return onExpression((query, cb, r) -> r.get(column));
     }
 
     public Builder<TRoot> onNullableColumn(SingularAttribute<TRoot, TCol> column, TCol defaultIfNull) {
-        return onNullablePath((query, cb, r) -> r.get(column), defaultIfNull);
+        return onNullableExpression((query, cb, r) -> r.get(column), defaultIfNull);
     }
 
     public Builder<TRoot> onEitherColumn(List<SingularAttribute<TRoot, TCol>> columns) {
@@ -121,35 +117,11 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilter
     }
 
     public Builder<TRoot> onColumn(String columnName) {
-        return onPath((query, cb, r) -> r.get(columnName));
-    }
-
-    public Builder<TRoot> onColumnWithSameName() {
-        return onPath((query, cb, r) -> r.get(this.filterKey.first()));
+        return onExpression((query, cb, r) -> r.get(columnName));
     }
 
     public Builder<TRoot> onNullableColumn(String columnName, TCol defaultIfNull) {
-        return onNullablePath((query, cb, r) -> r.get(columnName), defaultIfNull);
-    }
-
-    public Builder<TRoot> onNullableColumnWithSameName(TCol defaultIfNull) {
-        return onNullablePath((query, cb, r) -> r.get(this.filterKey.first()), defaultIfNull);
-    }
-
-    public <TCHILD> Builder<TRoot> onColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TCol> leafColumn) {
-        return onPath((query, cb, r) -> r.get(firstLevelColumn).get(leafColumn));
-    }
-
-    public <TCHILD, TGRANDCHILD> Builder<TRoot> onColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TGRANDCHILD> secondLevelColumn, SingularAttribute<TGRANDCHILD, TCol> leafColumn) {
-        return onPath((query, cb, r) -> r.get(firstLevelColumn).get(secondLevelColumn).get(leafColumn));
-    }
-
-    public Builder<TRoot> onColumnsChain(String firstColumnName, String... columnNames) {
-        return onPath((CriteriaQuery<Tuple> query, CriteriaBuilder cb, Root<TRoot> r)
-                -> Stream.of(columnNames)
-                        .reduce(r.get(firstColumnName), Path::get, (p1, p2) -> {
-                            throw new IllegalStateException("Can't parallelize this!");
-                        }));
+        return onNullableExpression((query, cb, r) -> r.get(columnName), defaultIfNull);
     }
 
     public Builder<TRoot> onEitherColumnName(List<String> columnNames) {
@@ -158,4 +130,29 @@ public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilter
                 .map((cn) -> r.<TCol>get(cn))
                 .collect(Collectors.toList()));
     }
+
+    public Builder<TRoot> onColumnWithSameName() {
+        return onExpression((query, cb, r) -> r.get(this.filterKey.first()));
+    }
+
+    public Builder<TRoot> onNullableColumnWithSameName(TCol defaultIfNull) {
+        return onNullableExpression((query, cb, r) -> r.get(this.filterKey.first()), defaultIfNull);
+    }
+
+    public <TCHILD> Builder<TRoot> onColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TCol> leafColumn) {
+        return onExpression((query, cb, r) -> r.get(firstLevelColumn).get(leafColumn));
+    }
+
+    public <TCHILD, TGRANDCHILD> Builder<TRoot> onColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TGRANDCHILD> secondLevelColumn, SingularAttribute<TGRANDCHILD, TCol> leafColumn) {
+        return onExpression((query, cb, r) -> r.get(firstLevelColumn).get(secondLevelColumn).get(leafColumn));
+    }
+
+    public Builder<TRoot> onColumnsChain(String firstColumnName, String... columnNames) {
+        return onExpression((CriteriaQuery<Tuple> query, CriteriaBuilder cb, Root<TRoot> r)
+                -> Stream.of(columnNames)
+                        .reduce(r.get(firstColumnName), Path::get, (p1, p2) -> {
+                            throw new IllegalStateException("Can't parallelize this!");
+                        }));
+    }
+
 }

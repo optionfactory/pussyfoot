@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.predicates;
+package net.optionfactory.pussyfoot.hibernate.executors;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
@@ -9,9 +9,9 @@ import static net.optionfactory.pussyfoot.extjs.Operator.gt;
 import static net.optionfactory.pussyfoot.extjs.Operator.gte;
 import static net.optionfactory.pussyfoot.extjs.Operator.lt;
 import static net.optionfactory.pussyfoot.extjs.Operator.lte;
-import net.optionfactory.pussyfoot.hibernate.SimplePredicateBuilder;
+import net.optionfactory.pussyfoot.hibernate.SimpleExecutor;
 
-public class Comparator<TCol extends Comparable<TCol>> implements SimplePredicateBuilder<TCol, Comparison<TCol>> {
+public class ComparatorExecutor<TCol extends Comparable<TCol>> implements SimpleExecutor<TCol, Comparison<TCol>> {
 
     @Override
     public Predicate predicateFor(CriteriaBuilder criteriaBuilder, Expression<TCol> resolvedColValue, Comparison<TCol> resolvedFilterValue) {

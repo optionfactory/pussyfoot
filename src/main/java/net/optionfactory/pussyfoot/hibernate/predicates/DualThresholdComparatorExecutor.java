@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.predicates;
+package net.optionfactory.pussyfoot.hibernate.executors;
 
 import java.util.function.Function;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -11,13 +11,13 @@ import static net.optionfactory.pussyfoot.extjs.Operator.gt;
 import static net.optionfactory.pussyfoot.extjs.Operator.gte;
 import static net.optionfactory.pussyfoot.extjs.Operator.lt;
 import static net.optionfactory.pussyfoot.extjs.Operator.lte;
-import net.optionfactory.pussyfoot.hibernate.SimplePredicateBuilder;
+import net.optionfactory.pussyfoot.hibernate.SimpleExecutor;
 
-public class DualThresholdComparator<TCol extends Comparable<? super TCol>, TFilterValue extends Comparable<? super TFilterValue>> implements SimplePredicateBuilder<TCol, Comparison<TFilterValue>> {
+public class DualThresholdComparatorExecutor<TCol extends Comparable<? super TCol>, TFilterValue extends Comparable<? super TFilterValue>> implements SimpleExecutor<TCol, Comparison<TFilterValue>> {
 
     private final Function<TFilterValue, Pair<TCol, TCol>> valueToThresholds;
 
-    public DualThresholdComparator(Function<TFilterValue, Pair<TCol, TCol>> valueToThresholds) {
+    public DualThresholdComparatorExecutor(Function<TFilterValue, Pair<TCol, TCol>> valueToThresholds) {
         this.valueToThresholds = valueToThresholds;
     }
 

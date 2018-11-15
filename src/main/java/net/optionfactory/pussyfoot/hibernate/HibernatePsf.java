@@ -165,7 +165,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final Pair<String, Class<? extends Object>> filterKey = Pair.of(name, value.getClass());
         final FilterRequestProcessor<TRoot, T, Object> filter = (FilterRequestProcessor<TRoot, T, Object>) availableFilters.get(filterKey);
         final Object filterFinalValue = filter.filterValueAdapter.apply(value);
-        return filter.predicateBuilder.predicateFor(query, cb, r, filterFinalValue);
+        return filter.filterExecutor.predicateFor(query, cb, r, filterFinalValue);
     }
 
     public static SortRequest.Direction determineEffectiveDirection(SortRequest.Direction requestDirection, Optional<PagingDirection> pagingDirection) {
@@ -360,7 +360,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public static class Builder<TRoot> {
 
         private boolean useCountDistinct = false;
-        private final ConcurrentMap<Pair<String, Class<? extends Object>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
+        private final ConcurrentMap<Pair<String, Class<?>>, FilterRequestProcessor<TRoot, ?, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<ExpressionResolver<TRoot, ?>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
@@ -385,7 +385,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @return a {@link SorterBuilder}, to specify against the columns to
          * use to sort
          */
-        public SorterBuilder<TRoot> onSortRequest(String sorterName) {
+        public SorterBuilder<TRoot, ?> onSortRequest(String sorterName) {
             return new SorterBuilder<>(this, sorterName);
         }
 
@@ -405,7 +405,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             return this;
         }
 
-        public Builder<TRoot> withFilterRequestProcessor(FilterRequestProcessor<TRoot, ?, ?> processor) {
+        public Builder<TRoot> withFilterRequestProcessor(FilterRequestProcessor processor) {
             this.filters.put(processor.filterRequestKey, processor);
             return this;
         }

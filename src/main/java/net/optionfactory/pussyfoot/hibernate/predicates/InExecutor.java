@@ -1,4 +1,4 @@
-package net.optionfactory.pussyfoot.hibernate.predicates;
+package net.optionfactory.pussyfoot.hibernate.executors;
 
 import java.util.Collection;
 import java.util.List;
@@ -6,9 +6,9 @@ import java.util.stream.Collectors;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
-import net.optionfactory.pussyfoot.hibernate.SimplePredicateBuilder;
+import net.optionfactory.pussyfoot.hibernate.SimpleExecutor;
 
-public class In<T,Coll extends Collection<T>> implements SimplePredicateBuilder<T, Coll> {
+public class InExecutor<T,Coll extends Collection<T>> implements SimpleExecutor<T, Coll> {
 
     @Override
     public Predicate predicateFor(CriteriaBuilder cb, Expression<T> path, Coll filterValue) {

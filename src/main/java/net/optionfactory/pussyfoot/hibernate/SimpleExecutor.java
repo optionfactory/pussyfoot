@@ -5,7 +5,7 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 
 @FunctionalInterface
-public interface SimplePredicateBuilder<TCol, TFilterValue> {
+public interface SimpleExecutor<TCol, TFilterValue> {
 
     Predicate predicateFor(CriteriaBuilder criteriaBuilder, Expression<TCol> resolvedColValue, TFilterValue resolvedFilterValue);
 
