@@ -1,5 +1,8 @@
 package net.optionfactory.pussyfoot;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * Defines the outer interface of pussyfoot
  *
@@ -18,6 +21,8 @@ public interface Psf<T> {
      */
     PageResponse<T> queryForPage(PageRequest request);
 
-    PageResponse<T> queryForPageInfinteScrolling(PageRequest request);
+    PageResponse<T> queryForPageInfiniteScrolling(PageRequest request);
+
+    AbsolutePageResponse<T> queryForAbsolutePage(AbsolutePageRequest request,ObjectMapper mapper) throws JsonProcessingException;
 
 }

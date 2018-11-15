@@ -25,10 +25,10 @@ public class SorterBuilder<TRoot> {
     }
 
     public HibernatePsf.Builder<TRoot> as(BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext> sorterContextBuilder) {
-        return builder.withSorter(this.name,sorterContextBuilder);
+        return builder.withSorter(this.name, sorterContextBuilder);
     }
 
-    public HibernatePsf.Builder<TRoot> usePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> pathResolver) {
+    public HibernatePsf.Builder<TRoot> usePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<? extends Comparable<?>>> pathResolver) {
         return as((CriteriaBuilder cb, Root<TRoot> root) -> {
             final SorterContext orderingContext = new SorterContext();
             orderingContext.sortExpression = pathResolver.apply(cb, root);
@@ -36,7 +36,7 @@ public class SorterBuilder<TRoot> {
         });
     }
 
-    public <TCol> HibernatePsf.Builder<TRoot> useNullablePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
+    public <TCol extends Comparable<TCol>> HibernatePsf.Builder<TRoot> useNullablePath(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
         return as((CriteriaBuilder cb, Root<TRoot> root) -> {
             final SorterContext orderingContext = new SorterContext();
             final Expression<TCol> path = pathResolver.apply(cb, root);
@@ -45,19 +45,19 @@ public class SorterBuilder<TRoot> {
         });
     }
 
-    public HibernatePsf.Builder<TRoot> usePath(Function<Root<TRoot>, Expression<?>> pathResolver) {
+    public HibernatePsf.Builder<TRoot> usePath(Function<Root<TRoot>, Expression<? extends Comparable<?>>> pathResolver) {
         return usePath((cb, r) -> pathResolver.apply(r));
     }
 
-    public <TCol> HibernatePsf.Builder<TRoot> useNullablePath(Function<Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
+    public <TCol extends Comparable<TCol>> HibernatePsf.Builder<TRoot> useNullablePath(Function<Root<TRoot>, Expression<TCol>> pathResolver, TCol defaultIfNull) {
         return useNullablePath((cb, r) -> pathResolver.apply(r), defaultIfNull);
     }
 
-    public HibernatePsf.Builder<TRoot> useColumn(SingularAttribute<TRoot, ?> column) {
+    public HibernatePsf.Builder<TRoot> useColumn(SingularAttribute<TRoot, ? extends Comparable<?>> column) {
         return usePath((cb, r) -> r.get(column));
     }
 
-    public <TCol> HibernatePsf.Builder<TRoot> useNullableColumn(SingularAttribute<TRoot, TCol> column, TCol defaultIfNull) {
+    public <TCol extends Comparable<TCol>> HibernatePsf.Builder<TRoot> useNullableColumn(SingularAttribute<TRoot, TCol> column, TCol defaultIfNull) {
         return useNullablePath((cb, r) -> r.get(column), defaultIfNull);
     }
 
@@ -69,20 +69,20 @@ public class SorterBuilder<TRoot> {
         return usePath((cb, r) -> r.get(name));
     }
 
-    public <TCol> HibernatePsf.Builder<TRoot> useNullableColumn(String columnName, TCol defaultIfNull) {
+    public <TCol extends Comparable<TCol>> HibernatePsf.Builder<TRoot> useNullableColumn(String columnName, TCol defaultIfNull) {
         return useNullablePath((cb, r) -> r.<TCol>get(columnName), defaultIfNull);
     }
 
-    public <TCol> HibernatePsf.Builder<TRoot> useNullableColumnWithSameName(TCol defaultIfNull) {
+    public <TCol extends Comparable<TCol>> HibernatePsf.Builder<TRoot> useNullableColumnWithSameName(TCol defaultIfNull) {
         return useNullablePath((cb, r) -> r.<TCol>get(name), defaultIfNull);
     }
 
-    public <TCHILD> HibernatePsf.Builder<TRoot> useColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, ?> leafColumn) {
+    public <TCHILD> HibernatePsf.Builder<TRoot> useColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, ? extends Comparable<?>> leafColumn) {
         return usePath((cb, r) -> r.get(firstLevelColumn).get(leafColumn));
     }
 
-    public <TCHILD, TGRANDCHILD> HibernatePsf.Builder<TRoot> useColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TGRANDCHILD> secondLevelColumn, SingularAttribute<TGRANDCHILD, ?> leafColumn) {
-        return usePath(( cb, r) -> r.get(firstLevelColumn).get(secondLevelColumn).get(leafColumn));
+    public <TCHILD, TGRANDCHILD> HibernatePsf.Builder<TRoot> useColumnsChain(SingularAttribute<TRoot, TCHILD> firstLevelColumn, SingularAttribute<TCHILD, TGRANDCHILD> secondLevelColumn, SingularAttribute<TGRANDCHILD, ? extends Comparable<?>> leafColumn) {
+        return usePath((cb, r) -> r.get(firstLevelColumn).get(secondLevelColumn).get(leafColumn));
     }
 
     public HibernatePsf.Builder<TRoot> useColumnsChain(String firstColumnName, String... columnNames) {

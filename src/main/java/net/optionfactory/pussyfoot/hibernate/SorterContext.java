@@ -8,7 +8,7 @@ import javax.persistence.criteria.Selection;
 /**
  * Defines all that is necessary to apply a sorter function
  */
-public class SorterContext {
+public class SorterContext<T extends Comparable<? super T>> {
 
     /**
      * Default constructor
@@ -31,6 +31,6 @@ public class SorterContext {
     /**
      * The actual sort expression
      */
-    public Expression<?> sortExpression;
+    public Expression<T> sortExpression;
 
 }

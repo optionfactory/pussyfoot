@@ -2,6 +2,7 @@
 import net.optionfactory.pussyfoot.hibernate.predicates.Equal;
 import net.optionfactory.pussyfoot.hibernate.predicates.Comparator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import javax.persistence.metamodel.SingularAttribute;
 import net.optionfactory.pussyfoot.Psf;
 import net.optionfactory.pussyfoot.extjs.ExtJs;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
@@ -24,7 +25,7 @@ public class SyntaxExample {
                 /**/.applyPredicate(new Comparator<>())
                 /**/.onColumn("id")
                 //                    .onFilterRequest("search", String.class).applyPredicate()
-                .build(User.class, hibernate);
+                .build(User.class, (query, cb, r) -> r.get("id"), hibernate);
 
     }
 
