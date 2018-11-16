@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class AbsolutePageResponse<T> {
+public class RelativePageResponse<T> {
 
     /**
      * The actual list of records
@@ -16,18 +16,18 @@ public class AbsolutePageResponse<T> {
     public Optional<String> prevPageToken;
     public Optional<String> nextPageToken;
 
-    public AbsolutePageResponse(List<T> data, Optional<String> prevPageToken, Optional<String> nextPageToken) {
+    public RelativePageResponse(List<T> data, Optional<String> prevPageToken, Optional<String> nextPageToken) {
         this.data = data;
         this.prevPageToken = prevPageToken;
         this.nextPageToken = nextPageToken;
     }
 
-    public static <T> AbsolutePageResponse<T> of(List<T> data, Optional<String> prevPageToken, Optional<String> nextPageToken) {
-        return new AbsolutePageResponse<>(data, prevPageToken, nextPageToken);
+    public static <T> RelativePageResponse<T> of(List<T> data, Optional<String> prevPageToken, Optional<String> nextPageToken) {
+        return new RelativePageResponse<>(data, prevPageToken, nextPageToken);
     }
 
-    public <R> AbsolutePageResponse<R> map(Function<? super T, ? extends R> mapper) {
-        return AbsolutePageResponse.<R>of(this.data.stream().map(mapper).collect(Collectors.toList()), this.prevPageToken, this.nextPageToken);
+    public <R> RelativePageResponse<R> map(Function<? super T, ? extends R> mapper) {
+        return RelativePageResponse.<R>of(this.data.stream().map(mapper).collect(Collectors.toList()), this.prevPageToken, this.nextPageToken);
     }
 
     @Override

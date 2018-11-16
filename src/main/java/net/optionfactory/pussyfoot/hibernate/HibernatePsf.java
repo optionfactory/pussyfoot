@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import net.optionfactory.pussyfoot.Psf;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
@@ -14,15 +13,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.Tuple;
-import javax.persistence.TupleElement;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Expression;
@@ -30,11 +25,12 @@ import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
-import net.emaze.dysfunctional.contracts.dbc;
+import net.emaze.dysfunctional.Consumers;
+import net.emaze.dysfunctional.Zips;
 import net.emaze.dysfunctional.tuples.Pair;
 import net.emaze.dysfunctional.tuples.Triple;
 import net.optionfactory.pussyfoot.AbsolutePageRequest;
-import net.optionfactory.pussyfoot.AbsolutePageResponse;
+import net.optionfactory.pussyfoot.RelativePageResponse;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
@@ -93,7 +89,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
-        List<Predicate> predicates = requestToPredicates(request.filters, ccq, cb, countRoot);
+        List<Predicate> predicates = filterRequestsToPredicates(request.filters, ccq, cb, countRoot);
         ccq.where(cb.and(predicates.toArray(new Predicate[0])));
         final Query<Tuple> countQuery = session.createQuery(ccq);
         final Tuple countResult = countQuery.getSingleResult();
@@ -135,7 +131,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 }).collect(Collectors.toList())
         );
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
-        final List<Predicate> predicates = requestToPredicates(request.filters, scq, cb, sliceRoot);
+        final List<Predicate> predicates = filterRequestsToPredicates(request.filters, scq, cb, sliceRoot);
         scq.where(cb.and(predicates.toArray(new Predicate[0])));
         scq.orderBy(orderers);
         final Query<Tuple> sliceQuery = session.createQuery(scq);
@@ -150,7 +146,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         return slice;
     }
 
-    private List<Predicate> requestToPredicates(FilterRequest<?>[] filterRequests, final CriteriaQuery<Tuple> ccq, final CriteriaBuilder cb, final Root<TRoot> root) {
+    private List<Predicate> filterRequestsToPredicates(FilterRequest<?>[] filterRequests, final CriteriaQuery<Tuple> ccq, final CriteriaBuilder cb, final Root<TRoot> root) {
         final List<Predicate> predicates = Stream.of(filterRequests)
                 .filter(filterRequest -> {
                     final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
@@ -168,17 +164,10 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         return filter.filterExecutor.predicateFor(query, cb, r, filterFinalValue);
     }
 
-    public static SortRequest.Direction determineEffectiveDirection(SortRequest.Direction requestDirection, Optional<PagingDirection> pagingDirection) {
-        final boolean isPreviousPageToken = pagingDirection.map(dir -> dir == PagingDirection.PreviousPage).orElse(false);
-        final boolean isNextPageToken = pagingDirection.map(dir -> dir == PagingDirection.NextPage).orElse(true);
-        return (requestDirection == SortRequest.Direction.ASC && isNextPageToken)
-                || (requestDirection == SortRequest.Direction.DESC && isPreviousPageToken)
-                        ? SortRequest.Direction.ASC
-                        : SortRequest.Direction.DESC;
-    }
-
     @Override
-    public AbsolutePageResponse<TRoot> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException {
+    public RelativePageResponse<TRoot> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException {
+        final Optional<PageToken> pageToken = request.slice.reference.map(t -> decodeToken(mapper, t));
+
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
@@ -188,61 +177,33 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
         final List<Predicate> predicates = new ArrayList<>();
-        final Optional<PageToken> pageToken;
-        if (request.slice.reference.isPresent()) {
-            try {
-                final PageToken token = mapper.readValue(Base64.getDecoder().decode(request.slice.reference.get()), PageToken.class);
-                pageToken = Optional.of(token);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
-            }
-        } else {
-            pageToken = Optional.empty();
-        }
+
+        List<Pair<Expression<?>, SortRequest.Direction>> sortersAndDirection = extractEffectiveSorters(request, scq, cb, sliceRoot, pageToken);
+        selectors.addAll(sortersAndDirection
+                .stream()
+                .map(Pair::first)
+                .collect(Collectors.toList()));
+
         final boolean isPreviousPageToken = pageToken.map(token -> token.direction == PagingDirection.PreviousPage).orElse(false);
         final boolean isNextPageToken = pageToken.map(token -> token.direction == PagingDirection.NextPage).orElse(false);
 
-        pageToken.ifPresent(token -> {
-            AtomicInteger tokenIndex = new AtomicInteger(0);
-            final List<Triple<Expression, SortRequest.Direction, Object>> columnDirectionAndValue = Stream.of(request.sorters)
-                    .filter(s -> availableSorters.containsKey(s.name))
-                    .flatMap(s -> {
-                        return availableSorters.get(s.name).stream().map(sortExpressionResolver -> {
-                            dbc.state(tokenIndex.get() < token.columnValues.size() - 1, "Invalid token index");
-                            final Expression expr = sortExpressionResolver.resolve(scq, cb, sliceRoot);
-                            Object val = token.columnValues.get(tokenIndex.getAndIncrement());
-                            return Triple.of(expr, s.direction, val);
-                        });
-                    }).collect(Collectors.toList());
-            columnDirectionAndValue.add(Triple.of(this.uniqueKeyFinder.resolve(scq, cb, sliceRoot), SortRequest.Direction.ASC, token.columnValues.get(token.columnValues.size() - 1)));
+        final List<Triple<Expression, SortRequest.Direction, Object>> sortersAndDirectionAndValue
+                = Consumers.all(Zips.shortest(sortersAndDirection, pageToken.map(token -> token.columnValues).orElse(Collections.emptyList())))
+                        .stream().map(zip -> {
+                            return Triple.of((Expression) zip.first().first(), zip.first().second(), zip.second());
+                        }).collect(Collectors.toList());
+        predicates.add(convertToPredicate(cb, sortersAndDirectionAndValue.iterator()));
+        predicates.addAll(filterRequestsToPredicates(request.filters, scq, cb, sliceRoot));
 
-            predicates.add(convertToPredicate(token.direction, cb, columnDirectionAndValue.iterator()));
-        });
-        predicates.addAll(requestToPredicates(request.filters, scq, cb, sliceRoot));
+        final List<Order> orderers = sortersAndDirection
+                .stream()
+                .map(sorterAndDirection -> {
+                    return sorterAndDirection.second() == SortRequest.Direction.ASC
+                            ? cb.asc(sorterAndDirection.first())
+                            : cb.desc(sorterAndDirection.first());
+                }).collect(Collectors.toList());
 
-        final List<Order> orderers = new ArrayList<>();
-        orderers.addAll(Stream.of(request.sorters)
-                .filter(s -> availableSorters.containsKey(s.name))
-                .flatMap(s -> {
-                    return availableSorters.get(s.name).stream().map(sortExpressionResolver -> {
-                        final Expression<?> sortExpression = sortExpressionResolver.resolve(scq, cb, sliceRoot);
-                        selectors.add(sortExpression);
-
-                        return determineEffectiveDirection(s.direction, pageToken.map(pt -> pt.direction)) == SortRequest.Direction.ASC
-                                ? cb.asc(sortExpression)
-                                : cb.desc(sortExpression);
-                    });
-                }).collect(Collectors.toList())
-        );
-        final Expression<?> resolvedUnique = this.uniqueKeyFinder.resolve(scq, cb, sliceRoot);
-        orderers.add(
-                determineEffectiveDirection(SortRequest.Direction.ASC, pageToken.map(pt -> pt.direction)) == SortRequest.Direction.ASC
-                ? cb.asc(resolvedUnique)
-                : cb.desc(resolvedUnique)
-        );
-        selectors.add(resolvedUnique);
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
-
         scq.where(cb.and(predicates.toArray(new Predicate[0])));
         scq.orderBy(orderers);
         final Query<Tuple> sliceQuery = session.createQuery(scq);
@@ -251,23 +212,23 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         }
 
         final List<Tuple> queryResults = sliceQuery.getResultList();
-        final boolean thereIsAnotherPage = queryResults.size() == request.slice.limit + 1;
-        final List<Tuple> tuplesInPage = queryResults.subList(0, thereIsAnotherPage ? queryResults.size() - 1 : queryResults.size());
+        final boolean isThereAnotherPage = queryResults.size() == request.slice.limit + 1;
+        final List<Tuple> sliceTuples = queryResults.subList(0, isThereAnotherPage ? queryResults.size() - 1 : queryResults.size());
         if (isPreviousPageToken) {
-            Collections.reverse(tuplesInPage);
+            Collections.reverse(sliceTuples);
         }
-        final List<TRoot> slice = tuplesInPage
+        final List<TRoot> slice = sliceTuples
                 .stream()
                 .map(tuple -> tuple.get(0, klass))
                 .collect(Collectors.toList());
         final PageToken prevPageToken = new PageToken(PagingDirection.PreviousPage, new ArrayList<>());
         final PageToken nextPageToken = new PageToken(PagingDirection.NextPage, new ArrayList<>());
-        if (tuplesInPage.size() > 0) {
-            final Tuple firstTupleInPage = tuplesInPage.get(0);
-            final Tuple lastTupleInPage = tuplesInPage.get(tuplesInPage.size() - 1);
-            for (int i = 1; i != firstTupleInPage.getElements().size(); ++i) {
-                prevPageToken.columnValues.add(firstTupleInPage.get(i));
-                nextPageToken.columnValues.add(lastTupleInPage.get(i));
+        if (sliceTuples.size() > 0) {
+            final Tuple firstSliceTuple = sliceTuples.get(0);
+            final Tuple lastSliceTuple = sliceTuples.get(sliceTuples.size() - 1);
+            for (int i = 1; i != firstSliceTuple.getElements().size(); ++i) {
+                prevPageToken.columnValues.add(firstSliceTuple.get(i));
+                nextPageToken.columnValues.add(lastSliceTuple.get(i));
             }
         }
         /**
@@ -288,27 +249,68 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * much guaranteed you have a previous page - the one you got this
          * reference token from!
          */
-        final boolean thereIsAPreviousPage = (isPreviousPageToken && thereIsAnotherPage) || isNextPageToken;
+        final boolean thereIsAPreviousPage = (isPreviousPageToken && isThereAnotherPage) || isNextPageToken;
         /**
-         * Similarly to the previous page case above. You know that you have
+         * Similarly to case above. You know that you have
          * another page if:
          *
-         * 1) You have no token, or a token for the NextPage, and there are
-         * enough records
+         * 1) You have no token or a token for the NextPage, and there are
+         * enough records for another page
          *
          * 2) You have a "previous page" token - which you could only obtain by
          * a "next page"
          */
-        final boolean thereIsANextPage = ((!pageToken.isPresent() || isNextPageToken) && thereIsAnotherPage) || isPreviousPageToken;
+        final boolean thereIsANextPage = ((!pageToken.isPresent() || isNextPageToken) && isThereAnotherPage) || isPreviousPageToken;
 
-        return new AbsolutePageResponse<>(slice,
+        return new RelativePageResponse<>(slice,
                 thereIsAPreviousPage ? Optional.ofNullable(encodeToken(mapper, prevPageToken)) : Optional.empty(),
                 thereIsANextPage ? Optional.ofNullable(encodeToken(mapper, nextPageToken)) : Optional.empty()
         );
     }
 
-    private static String encodeToken(ObjectMapper mapper, final PageToken prevPageToken) throws JsonProcessingException {
-        return Base64.getEncoder().encodeToString(mapper.writeValueAsString(prevPageToken).getBytes());
+    private List<Pair<Expression<?>, SortRequest.Direction>> extractEffectiveSorters(AbsolutePageRequest request, final CriteriaQuery<Tuple> scq, final CriteriaBuilder cb, final Root<TRoot> sliceRoot, final Optional<PageToken> pageToken) {
+        final List<Pair<Expression<?>, SortRequest.Direction>> sortersAndDirection = Stream.of(request.sorters)
+                .filter(sortRequest -> availableSorters.containsKey(sortRequest.name))
+                .flatMap(sortRequest -> {
+                    return availableSorters.get(sortRequest.name)
+                            .stream()
+                            .map(sortExpressionResolver -> {
+                                final Expression<?> sortExpression = sortExpressionResolver.resolve(scq, cb, sliceRoot);
+                                return Pair.<Expression<?>, SortRequest.Direction>of(sortExpression, sortRequest.direction);
+                            });
+                }).collect(Collectors.toList());
+        sortersAndDirection.add(Pair.<Expression<?>, SortRequest.Direction>of(
+                this.uniqueKeyFinder.resolve(scq, cb, sliceRoot),
+                SortRequest.Direction.ASC));
+        return sortersAndDirection
+                .stream()
+                .map(pair -> Pair.<Expression<?>, SortRequest.Direction>of(pair.first(), determineEffectiveDirection(pair.second(), pageToken.map(token -> token.direction))))
+                .collect(Collectors.toList());
+    }
+
+    public static SortRequest.Direction determineEffectiveDirection(SortRequest.Direction requestDirection, Optional<PagingDirection> pagingDirection) {
+        final boolean isPreviousPageToken = pagingDirection.map(dir -> dir == PagingDirection.PreviousPage).orElse(false);
+        final boolean isNextPageToken = pagingDirection.map(dir -> dir == PagingDirection.NextPage).orElse(true);
+        return (requestDirection == SortRequest.Direction.ASC && isNextPageToken)
+                || (requestDirection == SortRequest.Direction.DESC && isPreviousPageToken)
+                        ? SortRequest.Direction.ASC
+                        : SortRequest.Direction.DESC;
+    }
+
+    private static PageToken decodeToken(ObjectMapper mapper, final String reference) {
+        try {
+            return mapper.readValue(Base64.getDecoder().decode(reference), PageToken.class);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static String encodeToken(ObjectMapper mapper, final PageToken token) {
+        try {
+            return Base64.getEncoder().encodeToString(mapper.writeValueAsString(token).getBytes());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     private static <Y extends Comparable<? super Y>> Predicate gt(CriteriaBuilder cb, Expression expression, Object value) {
@@ -319,18 +321,18 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         return cb.lessThan(expression, (Y) value);
     }
 
-    private Predicate convertToPredicate(PagingDirection direction, CriteriaBuilder cb, Iterator<Triple<Expression, SortRequest.Direction, Object>> iterator) {
+    private Predicate convertToPredicate(CriteriaBuilder cb, Iterator<Triple<Expression, SortRequest.Direction, Object>> iterator) {
         if (!iterator.hasNext()) {
-            return cb.disjunction();
+            return cb.conjunction();
         }
         final Triple<Expression, SortRequest.Direction, Object> current = iterator.next();
         return cb.or(
-                determineEffectiveDirection(current.second(), Optional.of(direction)) == SortRequest.Direction.ASC
+                current.second() == SortRequest.Direction.ASC
                 /**/ ? gt(cb, current.first(), current.third())
                 /**/ : lt(cb, current.first(), current.third()),
                 cb.and(
                         cb.equal(current.first(), current.third()),
-                        convertToPredicate(direction, cb, iterator)
+                        convertToPredicate(cb, iterator)
                 )
         );
     }
