@@ -2,12 +2,16 @@ package net.optionfactory.pussyfoot.hibernate;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
+
 import net.optionfactory.pussyfoot.Psf;
+
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +29,7 @@ import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
+
 import net.emaze.dysfunctional.Consumers;
 import net.emaze.dysfunctional.Zips;
 import net.emaze.dysfunctional.tuples.Pair;
@@ -166,8 +171,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                     final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
                     return availableFilters.containsKey(key);
                 }).map(filterRequest -> {
-            return predicateForNameAndValue(filterRequest.name, filterRequest.value, ccq, cb, root);
-        }).collect(Collectors.toList());
+                    return predicateForNameAndValue(filterRequest.name, filterRequest.value, ccq, cb, root);
+                }).collect(Collectors.toList());
         return predicates;
     }
 
@@ -203,9 +208,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         final List<Triple<Expression, SortRequest.Direction, Object>> sortersAndDirectionAndValue
                 = Consumers.all(Zips.shortest(sortersAndDirection, pageToken.map(token -> token.columnValues).orElse(Collections.emptyList())))
-                        .stream().map(zip -> {
-                            return Triple.of((Expression) zip.first().first(), zip.first().second(), zip.second());
-                        }).collect(Collectors.toList());
+                .stream().map(zip -> {
+                    return Triple.of((Expression) zip.first().first(), zip.first().second(), zip.second());
+                }).collect(Collectors.toList());
         predicates.add(convertToPredicate(cb, sortersAndDirectionAndValue.iterator()));
         predicates.addAll(filterRequestsToPredicates(request.filters, scq, cb, sliceRoot));
 
@@ -306,8 +311,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final boolean isNextPageToken = pagingDirection.map(dir -> dir == PagingDirection.NextPage).orElse(true);
         return (requestDirection == SortRequest.Direction.ASC && isNextPageToken)
                 || (requestDirection == SortRequest.Direction.DESC && isPreviousPageToken)
-                        ? SortRequest.Direction.ASC
-                        : SortRequest.Direction.DESC;
+                ? SortRequest.Direction.ASC
+                : SortRequest.Direction.DESC;
     }
 
     private static PageToken decodeToken(ObjectMapper mapper, final String reference) {
@@ -341,8 +346,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final Triple<Expression, SortRequest.Direction, Object> current = iterator.next();
         return cb.or(
                 current.second() == SortRequest.Direction.ASC
-                /**/ ? gt(cb, current.first(), current.third())
-                /**/ : lt(cb, current.first(), current.third()),
+                        /**/ ? gt(cb, current.first(), current.third())
+                        /**/ : lt(cb, current.first(), current.third()),
                 cb.and(
                         cb.equal(current.first(), current.third()),
                         convertToPredicate(cb, iterator)
@@ -371,6 +376,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
     /**
      * A builder for HibernatePsf.
+     *
      * @param <TRoot> The type of the root object to paginate, filter and sort against
      */
     public static class Builder<TRoot> {
@@ -410,7 +416,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * when a {@link SortRequest} with a {@link SortRequest#name} matching
          * this sorter's name is found within a {@link PageRequest}
          *
-         * @param sorterName The name of this sorter
+         * @param sorterName               The name of this sorter
          * @param sorterExpressionResolver the expression to use to retrieve the value to filter against
          * @return builder itself, in order to chain further filters/sorterers
          */
@@ -449,10 +455,10 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         /**
          * Actually builds the {@link HibernatePsf} instance
          *
-         * @param clazz the main class the query is built from, matches the type
-         * of {@link Root}
+         * @param clazz           the main class the query is built from, matches the type
+         *                        of {@link Root}
          * @param uniqueKeyFinder The expression to use to retrieve a unique-key value for the table
-         * @param hibernate Hibernate's {@link SessionFactory}
+         * @param hibernate       Hibernate's {@link SessionFactory}
          * @return The fully built {@link HibernatePsf} instance to be using for querying
          */
         public HibernatePsf build(Class<TRoot> clazz, ExpressionResolver<TRoot, ?> uniqueKeyFinder, SessionFactory hibernate) {
