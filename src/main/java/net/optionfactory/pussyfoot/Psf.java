@@ -2,6 +2,8 @@ package net.optionfactory.pussyfoot;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import net.emaze.dysfunctional.tuples.Pair;
 
 /**
  * Defines the outer interface of pussyfoot
@@ -21,8 +23,10 @@ public interface Psf<T> {
      */
     PageResponse<T> queryForPage(PageRequest request);
 
+    Pair<Long,Map<String, Object>> countAndReductions(PageRequest request);
+
     PageResponse<T> queryForPageInfiniteScrolling(PageRequest request);
 
-    RelativePageResponse<T> queryForRelativePage(AbsolutePageRequest request,ObjectMapper mapper) throws JsonProcessingException;
+    RelativePageResponse<T> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException;
 
 }

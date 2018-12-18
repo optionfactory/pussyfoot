@@ -81,6 +81,33 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
+        final Pair<Long, Map<String, Object>> countAndReductions = executeCount(cb, request, session);
+
+        final List<TRoot> slice = executeSlice(cb, request, session);
+
+        return PageResponse.of(countAndReductions.first(), slice, countAndReductions.second());
+    }
+
+    @Override
+    public Pair<Long, Map<String, Object>> countAndReductions(PageRequest request) {
+        final Session session = hibernate.getCurrentSession();
+        final CriteriaBuilder cb = session.getCriteriaBuilder();
+
+        return executeCount(cb, request, session);
+    }
+
+    @Override
+    public PageResponse<TRoot> queryForPageInfiniteScrolling(PageRequest request) {
+        final Session session = hibernate.getCurrentSession();
+        final CriteriaBuilder cb = session.getCriteriaBuilder();
+
+        final List<TRoot> slice = executeSlice(cb, request, session);
+        final boolean moreRecordsLikelyPresent = slice.size() < request.slice.limit;
+        long totalRecords = moreRecordsLikelyPresent ? request.slice.start + slice.size() : request.slice.start + slice.size() + 1;
+        return PageResponse.of(totalRecords, slice, Collections.EMPTY_MAP);
+    }
+
+    private Pair<Long, Map<String, Object>> executeCount(final CriteriaBuilder cb, PageRequest request, final Session session) {
         final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
         final Root<TRoot> countRoot = ccq.from(klass);
         final List<Selection<?>> countSelectors = new ArrayList<>();
@@ -97,21 +124,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final Map<String, Object> reductions = countResult.getElements().stream()
                 .filter(e -> reducers.containsKey(e.getAlias()))
                 .collect(Collectors.toMap(t -> t.getAlias(), t -> countResult.get(t.getAlias())));
-
-        final List<TRoot> slice = executeSlice(cb, request, session);
-
-        return PageResponse.of(total, slice, reductions);
-    }
-
-    @Override
-    public PageResponse<TRoot> queryForPageInfiniteScrolling(PageRequest request) {
-        final Session session = hibernate.getCurrentSession();
-        final CriteriaBuilder cb = session.getCriteriaBuilder();
-
-        final List<TRoot> slice = executeSlice(cb, request, session);
-        final boolean moreRecordsLikelyPresent = slice.size() < request.slice.limit;
-        long totalRecords = moreRecordsLikelyPresent ? request.slice.start + slice.size() : request.slice.start + slice.size() + 1;
-        return PageResponse.of(totalRecords, slice, Collections.EMPTY_MAP);
+        return Pair.of(total, reductions);
     }
 
     private List<TRoot> executeSlice(final CriteriaBuilder cb, PageRequest request, final Session session) {
@@ -251,8 +264,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          */
         final boolean thereIsAPreviousPage = (isPreviousPageToken && isThereAnotherPage) || isNextPageToken;
         /**
-         * Similarly to case above. You know that you have
-         * another page if:
+         * Similarly to case above. You know that you have another page if:
          *
          * 1) You have no token or a token for the NextPage, and there are
          * enough records for another page
