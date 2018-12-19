@@ -96,6 +96,9 @@
     <profiles>
         <profile>
             <id>nexus</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <distributionManagement>
                 <snapshotRepository>
                      <id>nexus</id>
