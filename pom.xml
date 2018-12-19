@@ -40,16 +40,7 @@
         <developerConnection>scm:git:https://github.com/optionfactory/pussyfoot.git</developerConnection>
         <url>https://github.com/optionfactory/pussyfoot</url>
     </scm>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
+
     <properties>
         <spring.version>5.0.8.RELEASE</spring.version>
         <jackson.version>2.9.6</jackson.version>
@@ -97,9 +88,35 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <profiles>
+  <profiles>
+        <profile>
+            <id>nexus</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <distributionManagement>
+                <snapshotRepository>
+                     <id>nexus</id>
+                     <url>${env.NEXUS_SNAPSHOTS_URL}</url>
+                 </snapshotRepository>
+                 <repository>
+                     <id>nexus</id>
+                     <url>${env.NEXUS_RELEASES_URL}</url>
+                 </repository>
+            </distributionManagement>
+        </profile>
         <profile>
             <id>ossrh</id>
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                </snapshotRepository>
+                <repository>
+                    <id>ossrh</id>
+                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
             <build>
                 <plugins>
                     <plugin>
