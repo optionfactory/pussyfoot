@@ -16,7 +16,7 @@ public class StringPredicates {
      * Defines an partial, case-insensitive match Predicate on string columns.
      *
      * <p>
-     * PSQL equivalent when applied:<br/>
+     * PSQL equivalent when applied:<br>
      * ... where col ilike %:value:%
      * </p>
      *
@@ -38,7 +38,7 @@ public class StringPredicates {
      * against the resolved column's value. If the conversion is not successful,
      * returns a disjunction
      *
-     * @param <T> The type of the column (must be a subclass of {@link Numeric}
+     * @param <T> The type of the column (must be a subclass of {@link Number})
      * @param cb query's {@link CriteriaBuilder}
      * @param path resolved column value
      * @param mapper {@link String}-to-column's type resolver
@@ -77,14 +77,14 @@ public class StringPredicates {
      * @param filterValue filter's {@link String} value
      * @return a JPA's {@link Predicate}
      */
-    public static Predicate matchesInt(CriteriaBuilder cb, Expression<Integer> path, String v) {
+    public static Predicate matchesInt(CriteriaBuilder cb, Expression<Integer> path, String filterValue) {
         return matchesNumber(cb, path, val -> {
             try {
                 return Optional.of(Integer.parseInt(val));
             } catch (NumberFormatException ex) {
                 return Optional.empty();
             }
-        }, v);
+        }, filterValue);
     }
 
     /**
@@ -96,13 +96,13 @@ public class StringPredicates {
      * @param filterValue filter's {@link String} value
      * @return a JPA's {@link Predicate}
      */
-    public static Predicate matchesLong(CriteriaBuilder cb, Expression<Long> path, String v) {
+    public static Predicate matchesLong(CriteriaBuilder cb, Expression<Long> path, String filterValue) {
         return matchesNumber(cb, path, val -> {
             try {
                 return Optional.of(Long.parseLong(val));
             } catch (NumberFormatException ex) {
                 return Optional.empty();
             }
-        }, v);
+        }, filterValue);
     }
 }

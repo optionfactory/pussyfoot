@@ -66,6 +66,7 @@ public class PageRequest {
      * Static method to instantiate a {@link Builder} to easily expand an
      * existing {@link PageRequest}
      *
+     * @param onTopOfRequest The previously created request to be expanded
      * @return {@link PageRequest}'s {@link Builder} instance capable of
      * building on top of a previously existing {@link PageRequest}
      */
@@ -91,9 +92,11 @@ public class PageRequest {
         /**
          * Alternative constructor, to be used to enrich or modify an existing
          * {@link PageRequest}
+         *
+         * @param onTopOfRequest The previously created request to be expanded
          */
-        public Builder(PageRequest pr) {
-            building = pr;
+        public Builder(PageRequest onTopOfRequest) {
+            building = onTopOfRequest;
         }
 
         /**
@@ -101,7 +104,7 @@ public class PageRequest {
          * {@link PageRequest}
          *
          * @param slice the new {@link SliceRequest} value to use
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder withSlice(SliceRequest slice) {
             building = new PageRequest(slice, building.sorters, building.filters);
@@ -113,7 +116,7 @@ public class PageRequest {
          *
          * @param <T> The type of the value contained in the filter
          * @param filter the new filter to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public <T> Builder addFilter(FilterRequest<T> filter) {
             final List<FilterRequest> filters = new ArrayList<>(Arrays.asList(building.filters));
@@ -126,7 +129,7 @@ public class PageRequest {
          * Add new filters to the current ones
          *
          * @param filters the new filters to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder addFilters(Collection<FilterRequest> filters) {
             final List<FilterRequest> existingfilters = new ArrayList<>(Arrays.asList(building.filters));
@@ -139,7 +142,7 @@ public class PageRequest {
          * Add a new sorter to the current ones
          *
          * @param sorter the new sorter to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder addSorter(SortRequest sorter) {
             final List<SortRequest> sorters = new ArrayList<>(Arrays.asList(building.sorters));
@@ -152,7 +155,7 @@ public class PageRequest {
          * Replaces any previously defined sorters with the current one
          *
          * @param sorter the new sorter to use
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder withSorter(SortRequest sorter) {
             building = new PageRequest(building.slice, new SortRequest[]{sorter}, building.filters
@@ -162,6 +165,7 @@ public class PageRequest {
 
         /**
          * Completes the build and returns the constructed {@link PageRequest}
+         *
          * @return a {@link PageRequest} constructed as requested
          */
         public PageRequest build() {

@@ -26,7 +26,7 @@ public class RelativeSliceRequest {
     /**
      * Default constructor for a {@link SliceRequest}
      *
-     * @param start how many records to skip
+     * @param reference The reference to be used to determine the page start
      * @param limit how many records to take
      */
     public RelativeSliceRequest(Optional<String> reference, int limit) {
@@ -38,7 +38,7 @@ public class RelativeSliceRequest {
      * Static constructor, equivalent to
      * {@link SliceRequest#SliceRequest(int, int)}
      *
-     * @param start how many records to skip
+     * @param reference The reference to be used to determine the page start
      * @param limit how many records to take
      * @return a new instance of {@link SliceRequest}
      */

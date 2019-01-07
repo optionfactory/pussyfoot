@@ -52,12 +52,11 @@ public class AbsolutePageRequest {
         return "AbsolutePageRequest{" + "slice=" + slice + ", sorters=" + sorters + ", filters=" + filters + '}';
     }
 
-
     /**
      * Static method to instantiate a {@link Builder} to easily create a new
-     * {@link PageRequest}
+     * {@link AbsolutePageRequest}
      *
-     * @return a new {@link PageRequest}'s {@link Builder} instance
+     * @return a new {@link AbsolutePageRequest}'s {@link Builder} instance
      */
     public static Builder builder() {
         return new Builder();
@@ -65,24 +64,25 @@ public class AbsolutePageRequest {
 
     /**
      * Static method to instantiate a {@link Builder} to easily expand an
-     * existing {@link PageRequest}
+     * existing {@link AbsolutePageRequest}
      *
-     * @return {@link PageRequest}'s {@link Builder} instance capable of
-     * building on top of a previously existing {@link PageRequest}
+     * @param onTopOfRequest The previously created request to be expanded
+     * @return {@link AbsolutePageRequest}'s {@link Builder} instance capable of
+     * building on top of a previously existing {@link AbsolutePageRequest}
      */
     public static Builder builder(AbsolutePageRequest onTopOfRequest) {
         return new Builder(onTopOfRequest);
     }
 
     /**
-     * A builder class to help chain-construct a {@link PageRequest}
+     * A builder class to help chain-construct a {@link AbsolutePageRequest}
      */
     public static class Builder {
 
         private AbsolutePageRequest building;
 
         /**
-         * Default constructor, to be used when builing a {@link PageRequest}
+         * Default constructor, to be used when builing a {@link AbsolutePageRequest}
          * from scratch
          */
         public Builder() {
@@ -91,18 +91,20 @@ public class AbsolutePageRequest {
 
         /**
          * Alternative constructor, to be used to enrich or modify an existing
-         * {@link PageRequest}
+         * {@link AbsolutePageRequest}
+         *
+         * @param onTopOfRequest The previously created request to be expanded
          */
-        public Builder(AbsolutePageRequest pr) {
-            building = pr;
+        public Builder(AbsolutePageRequest onTopOfRequest) {
+            building = onTopOfRequest;
         }
 
         /**
-         * Adds or replaces the {@link PageRequest#slice} portion of a
-         * {@link PageRequest}
+         * Adds or replaces the {@link AbsolutePageRequest#slice} portion of a
+         * {@link AbsolutePageRequest}
          *
          * @param slice the new {@link SliceRequest} value to use
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder withSlice(RelativeSliceRequest slice) {
             building = new AbsolutePageRequest(slice, building.sorters, building.filters);
@@ -114,7 +116,7 @@ public class AbsolutePageRequest {
          *
          * @param <T> The type of the value contained in the filter
          * @param filter the new filter to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public <T> Builder addFilter(FilterRequest<T> filter) {
             final List<FilterRequest> filters = new ArrayList<>(Arrays.asList(building.filters));
@@ -127,7 +129,7 @@ public class AbsolutePageRequest {
          * Add new filters to the current ones
          *
          * @param filters the new filters to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder addFilters(Collection<FilterRequest> filters) {
             final List<FilterRequest> existingfilters = new ArrayList<>(Arrays.asList(building.filters));
@@ -140,7 +142,7 @@ public class AbsolutePageRequest {
          * Add a new sorter to the current ones
          *
          * @param sorter the new sorter to be added
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder addSorter(SortRequest sorter) {
             final List<SortRequest> sorters = new ArrayList<>(Arrays.asList(building.sorters));
@@ -153,7 +155,7 @@ public class AbsolutePageRequest {
          * Replaces any previously defined sorters with the current one
          *
          * @param sorter the new sorter to use
-         * @return the {@link Builders} itself, for further chaining
+         * @return the {@link Builder} itself, for further chaining
          */
         public Builder withSorter(SortRequest sorter) {
             building = new AbsolutePageRequest(building.slice, new SortRequest[]{sorter}, building.filters
@@ -162,8 +164,9 @@ public class AbsolutePageRequest {
         }
 
         /**
-         * Completes the build and returns the constructed {@link PageRequest}
-         * @return a {@link PageRequest} constructed as requested
+         * Completes the build and returns the constructed {@link AbsolutePageRequest}
+         *
+         * @return a {@link AbsolutePageRequest} constructed as requested
          */
         public AbsolutePageRequest build() {
             return building;

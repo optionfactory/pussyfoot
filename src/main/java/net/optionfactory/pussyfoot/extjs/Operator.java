@@ -8,6 +8,7 @@ package net.optionfactory.pussyfoot.extjs;
  * <li>{@link #eq} : a = b</li>
  * <li>{@link #gt} : a &gt; b</li>
  * <li>{@link #gte}: a &ge; b</li>
+ * </ul>
  */
 public enum Operator {
 

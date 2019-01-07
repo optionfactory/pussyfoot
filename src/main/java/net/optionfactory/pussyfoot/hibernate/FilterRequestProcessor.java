@@ -9,7 +9,7 @@ import net.optionfactory.pussyfoot.PageRequest;
  * Defines everything that is needed to respond to a {@link PageRequest}'s
  * {@link FilterRequest}
  *
- * @param <TRoot> the type of the query's {@link Root} object
+ * @param <TRoot> the type of the query's {@link TRoot} object
  * @param <TFilterRawValue> The type of the {@link FilterRequest#value} this
  * processor applies to
  * @param <TFilterValue> the type of the filter's value, after adaptation, to be
@@ -22,19 +22,26 @@ public class FilterRequestProcessor<TRoot, TFilterRawValue, TFilterValue> {
     protected final FilterExecutor<TRoot, TFilterValue> filterExecutor;
 
     /**
+     * <div>
      * Default constructor
-     *
-     * @param filterRequestKey when to apply this filter (as in: this processor
+     * </div>
+     * <p>
+     * Type Parameters:
+     * </p>
+     * <ul>
+     * <li>TRoot - the type of the query's {@link TRoot} object</li>
+     * <li>TFilterRawValue - The type of the {@link FilterRequest#value} this
+     * processor applies to</li>
+     * <li>TFilterValue - the type of the filter's value, after adaptation,
+     * to be applied against the database
+     * </ul>
+
+* @param filterRequestKey when to apply this filter (as in: this processor
      * reacts to requests with {@link FilterRequest#name} and the type of
      * {@link FilterRequest#value} matching the pair provided)
      * @param filterValueAdapter how to adapt (e.g.: deserialize) the
      * {@link FilterRequest#value} before applying it against the database
      * @param filterExecutor the actual function being applied
-     * @param <TRoot> the type of the query's {@link Root} object
-     * @param <TFilterRawValue> The type of the {@link FilterRequest#value} this
-     * processor applies to
-     * @param <TFilterValue> the type of the filter's value, after adaptation,
-     * to be applied against the database
      */
     public FilterRequestProcessor(
             Pair<String, Class<TFilterRawValue>> filterRequestKey,

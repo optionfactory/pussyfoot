@@ -47,7 +47,7 @@ public class PageResponse<T> {
      * @param total total number of records after filtering
      * @param data actual list of records
      * @param reductions Additional reductions, indexed by key
-     * @return
+     * @return an instance of {@link PageResponse} containing the requested data
      */
     public static <T> PageResponse<T> of(long total, List<T> data, Map<String, Object> reductions) {
         return new PageResponse<>(total, data, reductions);

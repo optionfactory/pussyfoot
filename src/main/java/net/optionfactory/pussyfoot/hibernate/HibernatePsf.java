@@ -370,6 +370,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
     /**
      * A builder for HibernatePsf.
+     * @param <TRoot> The type of the root object to paginate, filter and sort against
      */
     public static class Builder<TRoot> {
 
@@ -409,8 +410,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * this sorter's name is found within a {@link PageRequest}
          *
          * @param sorterName The name of this sorter
-         * @param sorterContextBuilder The {@link SorterContext} containing all
-         * the information necessary to apply the desired sorting to the query
+         * @param sorterExpressionResolver the expression to use to retrieve the value to filter against
          * @return builder itself, in order to chain further filters/sorterers
          */
         public Builder<TRoot> withSorter(String sorterName, ExpressionResolver<TRoot, ?> sorterExpressionResolver) {
@@ -437,8 +437,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * Allows to apply side effects usePath the query's {@link Root}. Main
          * use case is to specify eager joins
          *
-         * @param rootEnhancer
-         * @return
+         * @param rootEnhancer the root-enhancing function
+         * @return builder itself, in order to chain further filters/sorterers
          */
         public Builder<TRoot> withRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
             this.rootEnhancer = Optional.of(rootEnhancer);
@@ -450,8 +450,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          *
          * @param clazz the main class the query is built from, matches the type
          * of {@link Root}
+         * @param uniqueKeyFinder The expression to use to retrieve a unique-key value for the table
          * @param hibernate Hibernate's {@link SessionFactory}
-         * @return
+         * @return The fully built {@link HibernatePsf} instance to be using for querying
          */
         public HibernatePsf build(Class<TRoot> clazz, ExpressionResolver<TRoot, ?> uniqueKeyFinder, SessionFactory hibernate) {
             return new HibernatePsf(hibernate, clazz, uniqueKeyFinder, useCountDistinct, rootEnhancer, filters, sorters, reducers);
