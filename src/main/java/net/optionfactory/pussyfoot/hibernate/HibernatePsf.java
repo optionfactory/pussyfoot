@@ -52,6 +52,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     private final Class<TRoot> klass;
     private final boolean useCountDistinct;
     private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
+    private final Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver;
     private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
     private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers;
@@ -61,6 +62,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             Class<TRoot> klass,
             boolean useCountDistinct,
             Optional<Consumer<Root<TRoot>>> rootEnhancer,
+            Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver,
             ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
             ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers
@@ -69,6 +71,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         this.klass = klass;
         this.useCountDistinct = useCountDistinct;
         this.rootEnhancer = rootEnhancer;
+        this.uniqueKeyResolver = uniqueKeyResolver;
         this.availableFilters = availableFilters;
         this.availableSorters = availableSorters;
         this.reducers = reducers;
@@ -122,6 +125,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                     });
                 }).collect(Collectors.toList())
         );
+        this.uniqueKeyResolver.ifPresent(keyResolver -> {
+            orderers.add(cb.asc(keyResolver.apply(cb, sliceRoot)));
+        });
 
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
         scq.where(cb.and(predicates.toArray(new Predicate[0])));
@@ -150,6 +156,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
         private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
+        private Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver = Optional.empty();
 
         /**
          * Enables the use of "count (distinct [...])" instead of "count([...])"
@@ -173,6 +180,11 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          */
         public SorterBuilder<TRoot> withSorter(String sorterName) {
             return new SorterBuilder<>(this, sorterName);
+        }
+
+        public Builder<TRoot> withUniqueKey(BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> uniqueKeyResolver) {
+            this.uniqueKeyResolver = Optional.ofNullable(uniqueKeyResolver);
+            return this;
         }
 
         /**
@@ -566,7 +578,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @return
          */
         public HibernatePsf build(Class<TRoot> clazz, SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, clazz, useCountDistinct, rootEnhancer, filters, sorters, reducers);
+            return new HibernatePsf(hibernate, clazz, useCountDistinct, rootEnhancer, uniqueKeyResolver, filters, sorters, reducers);
         }
     }
 }
