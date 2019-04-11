@@ -96,12 +96,12 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                 .map(e -> e.getValue().apply(cb, countRoot).alias(e.getKey()))
                 .collect(Collectors.toCollection(() -> countSelectors));
         ccq.select(cb.tuple(countSelectors.toArray(new Selection<?>[0])));
-        final List<Predicate> predicates = Stream.of(request.filters)
+        final List<Predicate> countPredicates = Stream.of(request.filters)
                 .filter(filterRequest -> availableFilters.containsKey(filterRequest.name))
                 .map(filterRequest -> {
                     return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, countRoot);
                 }).collect(Collectors.toList());
-        ccq.where(cb.and(predicates.toArray(new Predicate[0])));
+        ccq.where(cb.and(countPredicates.toArray(new Predicate[0])));
         final Query<Tuple> countQuery = session.createQuery(ccq);
         final Tuple countResult = countQuery.getSingleResult();
         final Long total = countResult.get("psfcount", Long.class);
@@ -131,7 +131,12 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         });
 
         scq.select(cb.tuple(selectors.toArray(new Selection<?>[0])));
-        scq.where(cb.and(predicates.toArray(new Predicate[0])));
+        final List<Predicate> slicePredicates = Stream.of(request.filters)
+                .filter(filterRequest -> availableFilters.containsKey(filterRequest.name))
+                .map(filterRequest -> {
+                    return predicateForNameAndValue(filterRequest.name, filterRequest.value, cb, sliceRoot);
+                }).collect(Collectors.toList());
+        scq.where(cb.and(slicePredicates.toArray(new Predicate[0])));
 
         scq.orderBy(orderers);
         final Query<Tuple> sliceQuery = session.createQuery(scq);
