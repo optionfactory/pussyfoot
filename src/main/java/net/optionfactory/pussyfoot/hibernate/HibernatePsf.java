@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -51,7 +52,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     private final SessionFactory hibernate;
     private final Class<TRoot> klass;
     private final boolean useCountDistinct;
-    private final Optional<Consumer<Root<TRoot>>> rootEnhancer;
+    private final Optional<BiConsumer<CriteriaBuilder, Root<TRoot>>> rootEnhancer;
     private final Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver;
     private final ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters;
     private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters;
@@ -61,7 +62,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             SessionFactory hibernate,
             Class<TRoot> klass,
             boolean useCountDistinct,
-            Optional<Consumer<Root<TRoot>>> rootEnhancer,
+            Optional<BiConsumer<CriteriaBuilder, Root<TRoot>>> rootEnhancer,
             Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver,
             ConcurrentMap<String, JpaFilter<TRoot, ?>> availableFilters,
             ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> availableSorters,
@@ -110,7 +111,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
 
         final CriteriaQuery<Tuple> scq = cb.createTupleQuery();
         final Root<TRoot> sliceRoot = scq.from(klass);
-        rootEnhancer.ifPresent(re -> re.accept(sliceRoot));
+        rootEnhancer.ifPresent(re -> re.accept(cb, sliceRoot));
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
         final List<Order> orderers = new ArrayList<>();
@@ -155,7 +156,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         private final ConcurrentMap<String, JpaFilter<TRoot, ?>> filters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, List<BiFunction<CriteriaBuilder, Root<TRoot>, SorterContext>>> sorters = new ConcurrentHashMap<>();
         private final ConcurrentMap<String, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> reducers = new ConcurrentHashMap<>();
-        private Optional<Consumer<Root<TRoot>>> rootEnhancer = Optional.empty();
+        private Optional<BiConsumer<CriteriaBuilder, Root<TRoot>>> rootEnhancer = Optional.empty();
         private Optional<BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>>> uniqueKeyResolver = Optional.empty();
 
         /**
@@ -553,7 +554,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          */
         @Deprecated
         public Builder<TRoot> addRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
-            this.rootEnhancer = Optional.of(rootEnhancer);
+            this.rootEnhancer = Optional.of((cb, r) -> rootEnhancer.accept(r));
             return this;
         }
 
@@ -565,6 +566,18 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @return
          */
         public Builder<TRoot> withRootEnhancer(Consumer<Root<TRoot>> rootEnhancer) {
+            this.rootEnhancer = Optional.of((cb, r) -> rootEnhancer.accept(r));
+            return this;
+        }
+
+        /**
+         * Allows to apply side effects on the query's {@link Root}. Main use
+         * case is to specify eager joins
+         *
+         * @param rootEnhancer
+         * @return
+         */
+        public Builder<TRoot> withRootEnhancer(BiConsumer<CriteriaBuilder, Root<TRoot>> rootEnhancer) {
             this.rootEnhancer = Optional.of(rootEnhancer);
             return this;
         }
