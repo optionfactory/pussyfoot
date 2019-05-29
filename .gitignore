@@ -4,3 +4,6 @@ nb-configuration.xml
 .classpath
 .project
 .settings/
+.idea/
+*.iml
+
