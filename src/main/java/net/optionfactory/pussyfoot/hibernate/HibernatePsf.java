@@ -110,6 +110,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     private Pair<Long, Map<String, Object>> executeCount(final CriteriaBuilder cb, PageRequest request, final Session session) {
         final CriteriaQuery<Tuple> ccq = cb.createTupleQuery();
         final Root<TRoot> countRoot = ccq.from(klass);
+        rootEnhancer.ifPresent(re -> re.accept(countRoot));
         final List<Selection<?>> countSelectors = new ArrayList<>();
         countSelectors.add((this.useCountDistinct ? cb.countDistinct(countRoot) : cb.count(countRoot)).alias("psfcount"));
         reducers.entrySet().stream()
