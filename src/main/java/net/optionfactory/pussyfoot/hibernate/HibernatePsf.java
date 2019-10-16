@@ -461,8 +461,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * @param hibernate       Hibernate's {@link SessionFactory}
          * @return The fully built {@link HibernatePsf} instance to be using for querying
          */
-        public HibernatePsf build(Class<TRoot> clazz, ExpressionResolver<TRoot, ?> uniqueKeyFinder, SessionFactory hibernate) {
-            return new HibernatePsf(hibernate, clazz, uniqueKeyFinder, useCountDistinct, rootEnhancer, filters, sorters, reducers);
+        public HibernatePsf<TRoot> build(Class<TRoot> clazz, ExpressionResolver<TRoot, ?> uniqueKeyFinder, SessionFactory hibernate) {
+            return new HibernatePsf<TRoot>(hibernate, clazz, uniqueKeyFinder, useCountDistinct, rootEnhancer, filters, sorters, reducers);
         }
     }
 }
