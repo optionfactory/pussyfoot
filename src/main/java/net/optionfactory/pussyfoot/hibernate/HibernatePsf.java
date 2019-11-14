@@ -549,6 +549,14 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
             });
         }
 
+        /**
+         * @deprecated replaced by {@link #withReducer }
+         */
+        public Builder<TRoot> addReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
+            reducers.put(name, reduction);
+            return this;
+        }
+        
         public Builder<TRoot> withReducer(String name, BiFunction<CriteriaBuilder, Root<TRoot>, Expression<?>> reduction) {
             reducers.put(name, reduction);
             return this;
