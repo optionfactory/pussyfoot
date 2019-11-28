@@ -99,6 +99,27 @@ public class ExtJs {
     }
 
     /**
+     * To be used in conjunction with a column with a "filter:
+     * 'date'" definition
+     *
+     * @param mapper jacksons' {@link ObjectMapper} instance to be used for
+     * deserialization
+     * @param zoneId zone to be used for instant conversion
+     * @return a {@link Comparison} instance
+     */
+    public static Function<String, Comparison<ZonedDateTime>> utcDateWithFixedTimeZone(ObjectMapper mapper, ZoneId zoneId) {
+        return (String v) -> {
+            try {
+                final UTCDate utcDateFilter = (UTCDate) mapper.readValue(v, new TypeReference<UTCDate>() {
+                });
+                return Comparison.<ZonedDateTime>of(utcDateFilter.operator, utcDateFilter.value.atZone(zoneId));
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        };
+    }
+
+    /**
      * To be used in conjunction with a column with a "filter: 'list'"
      * definition
      *
