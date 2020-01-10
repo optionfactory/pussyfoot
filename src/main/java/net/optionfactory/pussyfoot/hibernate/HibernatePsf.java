@@ -107,7 +107,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final CriteriaBuilder cb = session.getCriteriaBuilder();
 
         final List<TRoot> slice = executeSlice(cb, request, session);
-        final boolean moreRecordsLikelyPresent = slice.size() < request.slice.limit;
+        final boolean moreRecordsLikelyPresent = (request.slice.limit != SliceRequest.UNLIMITED) && (slice.size() < request.slice.limit);
         long totalRecords = moreRecordsLikelyPresent ? request.slice.start + slice.size() : request.slice.start + slice.size() + 1;
         return PageResponse.of(totalRecords, slice, Collections.EMPTY_MAP);
     }
