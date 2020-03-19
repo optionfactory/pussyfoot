@@ -105,11 +105,18 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     public PageResponse<TRoot> queryForPageInfiniteScrolling(PageRequest request) {
         final Session session = hibernate.getCurrentSession();
         final CriteriaBuilder cb = session.getCriteriaBuilder();
-
-        final List<TRoot> slice = executeSlice(cb, request, session);
-        final boolean moreRecordsLikelyPresent = (request.slice.limit != SliceRequest.UNLIMITED) && (slice.size() < request.slice.limit);
-        long totalRecords = moreRecordsLikelyPresent ? request.slice.start + slice.size() + 1 : request.slice.start + slice.size();
-        return PageResponse.of(totalRecords, slice, Collections.EMPTY_MAP);
+        final SliceRequest requestOneRecordMoreExternalRequest = request.slice.limit == SliceRequest.UNLIMITED
+                ? request.slice
+                : SliceRequest.of(request.slice.start, request.slice.limit + 1);
+        final List<TRoot> slice = executeSlice(
+                cb,
+                PageRequest.builder(request)
+                        .withSlice(requestOneRecordMoreExternalRequest)
+                        .build(),
+                session);
+        final boolean moreRecordsLikelyPresent = (request.slice.limit != SliceRequest.UNLIMITED) && (slice.size() > request.slice.limit);
+        long totalRecords = request.slice.start + slice.size();
+        return PageResponse.of(totalRecords, slice.subList(0, moreRecordsLikelyPresent ? slice.size() - 1 : slice.size()), Collections.EMPTY_MAP);
     }
 
     private Pair<Long, Map<String, Object>> executeCount(final CriteriaBuilder cb, PageRequest request, final Session session) {
