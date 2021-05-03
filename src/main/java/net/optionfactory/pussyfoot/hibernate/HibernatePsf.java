@@ -114,6 +114,10 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         rootEnhancer.ifPresent(re -> re.accept(cb, sliceRoot));
         final List<Selection<?>> selectors = new ArrayList<>();
         selectors.add(sliceRoot);
+        if (this.useCountDistinct) {
+            selectors.add(cb.countDistinct(countRoot));
+            scq.groupBy(countRoot);
+        }
         final List<Order> orderers = new ArrayList<>();
         orderers.addAll(Stream.of(request.sorters)
                 .filter(s -> availableSorters.containsKey(s.name))
