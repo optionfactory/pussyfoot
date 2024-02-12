@@ -2,7 +2,6 @@
 import net.optionfactory.pussyfoot.hibernate.executors.EqualExecutor;
 import net.optionfactory.pussyfoot.hibernate.executors.ComparatorExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import javax.persistence.metamodel.SingularAttribute;
 import net.optionfactory.pussyfoot.Psf;
 import net.optionfactory.pussyfoot.extjs.ExtJs;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;

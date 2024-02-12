@@ -1,8 +1,8 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 @FunctionalInterface
 public interface SimpleExecutor<TCol, TFilterValue> {

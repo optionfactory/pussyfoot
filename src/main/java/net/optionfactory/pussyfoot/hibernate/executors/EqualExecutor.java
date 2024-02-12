@@ -1,8 +1,8 @@
 package net.optionfactory.pussyfoot.hibernate.executors;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import net.optionfactory.pussyfoot.hibernate.SimpleExecutor;
 
 public class EqualExecutor<TCol, TFilterValue extends TCol> implements SimpleExecutor<TCol, TFilterValue> {

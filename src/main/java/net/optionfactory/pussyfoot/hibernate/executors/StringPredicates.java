@@ -3,9 +3,9 @@ package net.optionfactory.pussyfoot.hibernate.executors;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.function.Function;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 
 /**
  * Helper class that groups useful String-related predicates builders

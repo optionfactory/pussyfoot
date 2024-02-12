@@ -1,8 +1,8 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import javax.persistence.Tuple;
-import javax.persistence.criteria.*;
-import javax.persistence.metamodel.SingularAttribute;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
