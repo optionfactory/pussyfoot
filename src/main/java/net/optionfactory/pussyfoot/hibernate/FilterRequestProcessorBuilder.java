@@ -13,7 +13,7 @@ import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.metamodel.SingularAttribute;
-import net.emaze.dysfunctional.tuples.Pair;
+import net.optionfactory.pussyfoot.Pair;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 
 public class FilterRequestProcessorBuilder<TRoot, TFilterRawValue, TCol, TFilterValue> {

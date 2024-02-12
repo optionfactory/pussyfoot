@@ -4,7 +4,7 @@ import java.util.function.Function;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
-import net.emaze.dysfunctional.tuples.Pair;
+import net.optionfactory.pussyfoot.Pair;
 import net.optionfactory.pussyfoot.extjs.Comparison;
 import static net.optionfactory.pussyfoot.extjs.Operator.eq;
 import static net.optionfactory.pussyfoot.extjs.Operator.gt;

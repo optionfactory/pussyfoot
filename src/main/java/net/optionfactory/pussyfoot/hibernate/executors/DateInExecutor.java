@@ -3,7 +3,7 @@ package net.optionfactory.pussyfoot.hibernate.executors;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Function;
-import net.emaze.dysfunctional.tuples.Pair;
+import net.optionfactory.pussyfoot.Pair;
 
 public class DateInExecutor<TCol extends Comparable<? super TCol>> extends DualThresholdComparatorExecutor<TCol, ZonedDateTime> {
 

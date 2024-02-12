@@ -1,9 +1,9 @@
 package net.optionfactory.pussyfoot.hibernate;
 
 import java.util.function.Function;
-import net.emaze.dysfunctional.tuples.Pair;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
+import net.optionfactory.pussyfoot.Pair;
 
 /**
  * Defines everything that is needed to respond to a {@link PageRequest}'s

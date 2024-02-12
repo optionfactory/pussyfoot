@@ -1,7 +1,7 @@
 package net.optionfactory.pussyfoot.hibernate;
 
 import java.util.function.Function;
-import net.emaze.dysfunctional.tuples.Pair;
+import net.optionfactory.pussyfoot.Pair;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
 
 public class FilterRequestProcessorPreBuilder<TRoot, TFilterRawValue, TFilterValue> {

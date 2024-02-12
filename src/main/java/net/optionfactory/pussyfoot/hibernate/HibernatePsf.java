@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +19,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.persistence.Tuple;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -30,15 +30,12 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 
-import net.emaze.dysfunctional.Consumers;
-import net.emaze.dysfunctional.Zips;
-import net.emaze.dysfunctional.tuples.Pair;
-import net.emaze.dysfunctional.tuples.Triple;
 import net.optionfactory.pussyfoot.AbsolutePageRequest;
 import net.optionfactory.pussyfoot.RelativePageResponse;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.PageResponse;
+import net.optionfactory.pussyfoot.Pair;
 import net.optionfactory.pussyfoot.SliceRequest;
 import net.optionfactory.pussyfoot.SortRequest;
 import org.hibernate.Session;
@@ -178,8 +175,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                     final Pair<String, Class<? extends Object>> key = Pair.of(filterRequest.name, filterRequest.value.getClass());
                     return availableFilters.containsKey(key);
                 }).map(filterRequest -> {
-                    return predicateForNameAndValue(filterRequest.name, filterRequest.value, ccq, cb, root);
-                }).collect(Collectors.toList());
+            return predicateForNameAndValue(filterRequest.name, filterRequest.value, ccq, cb, root);
+        }).collect(Collectors.toList());
         return predicates;
     }
 
@@ -213,11 +210,20 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final boolean isPreviousPageToken = pageToken.map(token -> token.direction == PagingDirection.PreviousPage).orElse(false);
         final boolean isNextPageToken = pageToken.map(token -> token.direction == PagingDirection.NextPage).orElse(false);
 
-        final List<Triple<Expression, SortRequest.Direction, Object>> sortersAndDirectionAndValue
-                = Consumers.all(Zips.shortest(sortersAndDirection, pageToken.map(token -> token.columnValues).orElse(Collections.emptyList())))
-                .stream().map(zip -> {
-                    return Triple.of((Expression) zip.first().first(), zip.first().second(), zip.second());
-                }).collect(Collectors.toList());
+        final var sortColumnValues = pageToken.map(token -> token.columnValues).orElse(Collections.emptyList());
+
+        final List<ExpressionDirectionAndValue> sortersAndDirectionAndValue = IntStream.range(0, sortersAndDirection.size())
+                .mapToObj(i -> {
+                    final var sad = sortersAndDirection.get(i);
+                    if (i >= sortColumnValues.size()) {
+                        return null;
+                    }
+                    return new ExpressionDirectionAndValue(sad.first(), sad.second(), sortColumnValues.get(i));
+
+                })
+                .filter(v -> v != null)
+                .collect(Collectors.toList());
+
         predicates.add(convertToPredicate(cb, sortersAndDirectionAndValue.iterator()));
         predicates.addAll(filterRequestsToPredicates(request.filters, scq, cb, sliceRoot));
 
@@ -318,8 +324,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         final boolean isNextPageToken = pagingDirection.map(dir -> dir == PagingDirection.NextPage).orElse(true);
         return (requestDirection == SortRequest.Direction.ASC && isNextPageToken)
                 || (requestDirection == SortRequest.Direction.DESC && isPreviousPageToken)
-                ? SortRequest.Direction.ASC
-                : SortRequest.Direction.DESC;
+                        ? SortRequest.Direction.ASC
+                        : SortRequest.Direction.DESC;
     }
 
     private static PageToken decodeToken(ObjectMapper mapper, final String reference) {
@@ -346,20 +352,34 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         return cb.lessThan(expression, (Y) value);
     }
 
-    private Predicate convertToPredicate(CriteriaBuilder cb, Iterator<Triple<Expression, SortRequest.Direction, Object>> iterator) {
+    private Predicate convertToPredicate(CriteriaBuilder cb, Iterator<ExpressionDirectionAndValue> iterator) {
         if (!iterator.hasNext()) {
             return cb.conjunction();
         }
-        final Triple<Expression, SortRequest.Direction, Object> current = iterator.next();
+        final ExpressionDirectionAndValue current = iterator.next();
         return cb.or(
-                current.second() == SortRequest.Direction.ASC
-                        /**/ ? gt(cb, current.first(), current.third())
-                        /**/ : lt(cb, current.first(), current.third()),
+                current.direction == SortRequest.Direction.ASC
+                        /**/ ? gt(cb, current.expression, current.value)
+                        /**/ : lt(cb, current.expression, current.value),
                 cb.and(
-                        cb.equal(current.first(), current.third()),
+                        cb.equal(current.expression, current.value),
                         convertToPredicate(cb, iterator)
                 )
         );
+    }
+
+    private static class ExpressionDirectionAndValue {
+
+        public final Expression expression;
+        public final SortRequest.Direction direction;
+        public final Object value;
+
+        public ExpressionDirectionAndValue(Expression expression, SortRequest.Direction direction, Object value) {
+            this.expression = expression;
+            this.direction = direction;
+            this.value = value;
+        }
+
     }
 
     public static enum PagingDirection {
@@ -384,7 +404,8 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     /**
      * A builder for HibernatePsf.
      *
-     * @param <TRoot> The type of the root object to paginate, filter and sort against
+     * @param <TRoot> The type of the root object to paginate, filter and sort
+     * against
      */
     public static class Builder<TRoot> {
 
@@ -423,8 +444,9 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
          * when a {@link SortRequest} with a {@link SortRequest#name} matching
          * this sorter's name is found within a {@link PageRequest}
          *
-         * @param sorterName               The name of this sorter
-         * @param sorterExpressionResolver the expression to use to retrieve the value to filter against
+         * @param sorterName The name of this sorter
+         * @param sorterExpressionResolver the expression to use to retrieve the
+         * value to filter against
          * @return builder itself, in order to chain further filters/sorterers
          */
         public Builder<TRoot> withSorter(String sorterName, ExpressionResolver<TRoot, ?> sorterExpressionResolver) {
@@ -462,11 +484,13 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
         /**
          * Actually builds the {@link HibernatePsf} instance
          *
-         * @param clazz           the main class the query is built from, matches the type
-         *                        of {@link Root}
-         * @param uniqueKeyFinder The expression to use to retrieve a unique-key value for the table
-         * @param hibernate       Hibernate's {@link SessionFactory}
-         * @return The fully built {@link HibernatePsf} instance to be using for querying
+         * @param clazz the main class the query is built from, matches the type
+         * of {@link Root}
+         * @param uniqueKeyFinder The expression to use to retrieve a unique-key
+         * value for the table
+         * @param hibernate Hibernate's {@link SessionFactory}
+         * @return The fully built {@link HibernatePsf} instance to be using for
+         * querying
          */
         public HibernatePsf<TRoot> build(Class<TRoot> clazz, ExpressionResolver<TRoot, ?> uniqueKeyFinder, SessionFactory hibernate) {
             return new HibernatePsf<TRoot>(hibernate, clazz, uniqueKeyFinder, useCountDistinct, rootEnhancer, filters, sorters, reducers);
