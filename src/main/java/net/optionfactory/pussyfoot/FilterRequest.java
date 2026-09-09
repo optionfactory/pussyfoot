@@ -1,5 +1,8 @@
 package net.optionfactory.pussyfoot;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * Used to request filtered data.
  * @param <T> The type of the filter's value
@@ -16,7 +19,8 @@ public class FilterRequest<T> {
      * @param value
      *  The value to be passed to the filter referenced
      */
-    public FilterRequest(String name, T value) {
+    @JsonCreator
+    public FilterRequest(@JsonProperty("name") String name, @JsonProperty("value") T value) {
         this.name = name;
         this.value = value;
     }

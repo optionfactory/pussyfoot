@@ -1,7 +1,7 @@
 package net.optionfactory.pussyfoot;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+
 import java.util.Map;
 
 /**
@@ -26,5 +26,5 @@ public interface Psf<T> {
 
     PageResponse<T> queryForPageInfiniteScrolling(PageRequest request);
 
-    RelativePageResponse<T> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException;
+    RelativePageResponse<T> queryForRelativePage(AbsolutePageRequest request, JsonMapper mapper);
 }

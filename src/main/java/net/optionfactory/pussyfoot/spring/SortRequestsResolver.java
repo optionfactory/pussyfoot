@@ -1,6 +1,5 @@
 package net.optionfactory.pussyfoot.spring;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.SortRequest;
 import org.springframework.core.MethodParameter;
@@ -8,13 +7,14 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import tools.jackson.databind.json.JsonMapper;
 
 public class SortRequestsResolver implements HandlerMethodArgumentResolver {
 
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
-    public SortRequestsResolver(ObjectMapper mapper) {
-        this.mapper = mapper.addMixIn(SortRequest.class, SortRequestMixin.class);
+    public SortRequestsResolver(JsonMapper mapper) {
+        this.mapper = mapper;
     }
 
     @Override

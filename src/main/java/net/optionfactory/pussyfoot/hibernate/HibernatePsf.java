@@ -1,11 +1,26 @@
 package net.optionfactory.pussyfoot.hibernate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-
+import jakarta.persistence.Tuple;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Selection;
+import net.optionfactory.pussyfoot.AbsolutePageRequest;
+import net.optionfactory.pussyfoot.FilterRequest;
+import net.optionfactory.pussyfoot.PageRequest;
+import net.optionfactory.pussyfoot.PageResponse;
+import net.optionfactory.pussyfoot.Pair;
 import net.optionfactory.pussyfoot.Psf;
+import net.optionfactory.pussyfoot.RelativePageResponse;
+import net.optionfactory.pussyfoot.SliceRequest;
+import net.optionfactory.pussyfoot.SortRequest;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.query.Query;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -21,26 +36,6 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import jakarta.persistence.Tuple;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Order;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Selection;
-
-import net.optionfactory.pussyfoot.AbsolutePageRequest;
-import net.optionfactory.pussyfoot.RelativePageResponse;
-import net.optionfactory.pussyfoot.FilterRequest;
-import net.optionfactory.pussyfoot.PageRequest;
-import net.optionfactory.pussyfoot.PageResponse;
-import net.optionfactory.pussyfoot.Pair;
-import net.optionfactory.pussyfoot.SliceRequest;
-import net.optionfactory.pussyfoot.SortRequest;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.query.Query;
 
 /**
  * Hibernate implementation of the pagination, sorting, filtering API.
@@ -188,7 +183,7 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
     }
 
     @Override
-    public RelativePageResponse<TRoot> queryForRelativePage(AbsolutePageRequest request, ObjectMapper mapper) throws JsonProcessingException {
+    public RelativePageResponse<TRoot> queryForRelativePage(AbsolutePageRequest request, JsonMapper mapper) {
         final Optional<PageToken> pageToken = request.slice.reference.map(t -> decodeToken(mapper, t));
 
         final Session session = hibernate.getCurrentSession();
@@ -328,20 +323,12 @@ public class HibernatePsf<TRoot> implements Psf<TRoot> {
                         : SortRequest.Direction.DESC;
     }
 
-    private static PageToken decodeToken(ObjectMapper mapper, final String reference) {
-        try {
-            return mapper.readValue(Base64.getDecoder().decode(reference), PageToken.class);
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+    private static PageToken decodeToken(JsonMapper mapper, final String reference) {
+        return mapper.readValue(Base64.getDecoder().decode(reference), PageToken.class);
     }
 
-    private static String encodeToken(ObjectMapper mapper, final PageToken token) {
-        try {
-            return Base64.getEncoder().encodeToString(mapper.writeValueAsString(token).getBytes());
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+    private static String encodeToken(JsonMapper mapper, final PageToken token) {
+        return Base64.getEncoder().encodeToString(mapper.writeValueAsString(token).getBytes());
     }
 
     private static <Y extends Comparable<? super Y>> Predicate gt(CriteriaBuilder cb, Expression expression, Object value) {

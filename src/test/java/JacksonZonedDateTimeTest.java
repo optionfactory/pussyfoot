@@ -1,33 +1,23 @@
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.io.IOException;
 import java.time.ZonedDateTime;
+import java.util.TimeZone;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 public class JacksonZonedDateTimeTest {
 
     @Test
     @Ignore
-    public void check() throws JsonProcessingException, IOException {
-        final ObjectMapper mapper = new Jackson2ObjectMapperBuilder()
-                .timeZone("Europe/Rome")
-                .json()
-                .failOnEmptyBeans(false)
-                .modules(
-                        new JavaTimeModule()
-                )
-                .autoDetectFields(true)
+    public void check() {
+        final JsonMapper mapper = JsonMapper.builder()
+                .defaultTimeZone(TimeZone.getTimeZone("Europe/Rome"))
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
                 .build();
-    //    mapper.getDeserializationContext().getTimeZone();
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        mapper.configure(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE, false);
         final ZonedDateTime zdt = ZonedDateTime.now();
 
         String serialized = mapper.writeValueAsString(zdt);

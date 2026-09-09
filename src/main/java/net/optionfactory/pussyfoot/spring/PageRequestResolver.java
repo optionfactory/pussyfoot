@@ -1,6 +1,5 @@
 package net.optionfactory.pussyfoot.spring;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.optionfactory.pussyfoot.FilterRequest;
 import net.optionfactory.pussyfoot.PageRequest;
 import net.optionfactory.pussyfoot.SliceRequest;
@@ -10,6 +9,7 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import tools.jackson.databind.json.JsonMapper;
 
 public class PageRequestResolver implements HandlerMethodArgumentResolver {
 
@@ -17,7 +17,7 @@ public class PageRequestResolver implements HandlerMethodArgumentResolver {
     private final FilterRequestsResolver filtersResolver;
     private final SortRequestsResolver sortersResolver;
 
-    public PageRequestResolver(ObjectMapper mapper) {
+    public PageRequestResolver(JsonMapper mapper) {
         this.sliceResolver = new SliceRequestResolver();
         this.filtersResolver = new FilterRequestsResolver(mapper);
         this.sortersResolver = new SortRequestsResolver(mapper);

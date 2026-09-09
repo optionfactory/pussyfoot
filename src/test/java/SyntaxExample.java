@@ -1,11 +1,10 @@
-
-import net.optionfactory.pussyfoot.hibernate.executors.EqualExecutor;
-import net.optionfactory.pussyfoot.hibernate.executors.ComparatorExecutor;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.optionfactory.pussyfoot.Psf;
 import net.optionfactory.pussyfoot.extjs.ExtJs;
 import net.optionfactory.pussyfoot.hibernate.HibernatePsf.Builder;
+import net.optionfactory.pussyfoot.hibernate.executors.ComparatorExecutor;
+import net.optionfactory.pussyfoot.hibernate.executors.EqualExecutor;
 import org.hibernate.SessionFactory;
+import tools.jackson.databind.json.JsonMapper;
 
 public class SyntaxExample {
 
@@ -14,7 +13,7 @@ public class SyntaxExample {
 
     public void experiments() {
         SessionFactory hibernate = null;
-        ObjectMapper mapper = null;
+        JsonMapper mapper = null;
         Psf<User> psf = new Builder<User>()
                 .onFilterRequest("exactId", Integer.class)
                 /**/.applyExecutor(new EqualExecutor<>())
